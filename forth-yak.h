@@ -1,8 +1,9 @@
+#include <assert.h>
+#include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <strings.h>
-#include <memory.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #define D    if(Debug)fprintf
 
@@ -40,17 +41,9 @@ namespace forth_yak {
 	char b[S];
     } Both;
 
-    inline C Get(C i) {
-	Both x;
-	 memcpy(x.b, Mem + i, S);
-    } inline void Put(C i, C x) {
-	Both z;
-	z.c = x;
-	memcpy(Mem + i, z.b, S);
-    }
-
     extern C HerePtr;		// points to Here variable
     extern C LatestPtr;		// points to Latest variable
+    extern C StatePtr;		// points to State variable
     extern C Ds;		// data stack ptr
     extern C Rs;		// return stack ptr
     extern C Ip;		// instruction ptr
@@ -63,14 +56,57 @@ namespace forth_yak {
     }
 
     typedef enum {
-	NONE_OpCode,
-	THREE,
-	EIGHT,
+	END,     // 0
 	PLUS,
 	DOT,
+	DUP,     // 3
+	DROP,
+	_LIT_,
+	_ENTER_,  // 6
+	_EXIT_,
+	COLON,    // 8
     } Opcode;
 
-    typedef void OpFn();
-    extern OpFn *Ops[LINELEN];
+    // Get & Put.
+    inline C Get(C i) {
+	return *(C*)(Mem+i);
+    }
+    inline void Put(C i, C x) {
+	*(C*)(Mem+i) = x;
+    }
+    // Peek, Poke, Push, Pop.
+    inline C Pop() {
+    	C p = Ds;
+    	Ds += S;
+	return Get(p);
+    }
+    inline void Push(C x, int i = 0) {
+    	Ds -= S;
+    	Put(Ds, x);
+    }
+    inline void Poke(C x, int i = 0) {
+    	Put(Ds + S*i, x);
+    }
+    inline C Peek(int i = 0) {
+    	return Get(Ds + S*i);
+    }
 
+    inline C PopR() {
+    	Rs += S;
+	return Get(Rs - S);
+    }
+    inline void PushR(C x, int i = 0) {
+    	Rs -= S;
+    	Put(Rs, x);
+    }
+    inline void PokeR(C x, int i = 0) {
+    	Put(Rs + S*i, x);
+    }
+    inline C PeekR(int i = 0) {
+    	return Get(Rs + S*i);
+    }
+    inline C Aligned(C x) {
+    	constexpr C m = S - 1;
+    	return (x+m) & (~m);
+    }
 }				// namespace forth_yak
