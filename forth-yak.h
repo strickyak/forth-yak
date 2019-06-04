@@ -68,6 +68,7 @@ namespace forth_yak {
     MOD,
     _EQ,
     _NE,
+    DUMPMEM,
     DO,
     _DO,
     LOOP,
@@ -78,6 +79,10 @@ namespace forth_yak {
     BRANCH,
     BRANCH0,
   } Opcode;
+
+  constexpr B LEN_MASK = 0x1F;  // max length is 31.
+  constexpr B HIDDEN_BIT = 0x20;
+  constexpr B IMMEDIATE_BIT = 0x80;
 
   inline bool streq(const char *p, const char *q) {
     D(stderr, "  (streq <%s> <%s>) ", p, q);

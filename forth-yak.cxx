@@ -44,8 +44,8 @@ namespace forth_yak {
     }
   };
 
-  void DumpMem() {
-    if (!Debug)
+  void DumpMem(bool force = false) {
+    if (!force && !Debug)
       return;
     printf
         ("Dump: Rs=%llx  Ds=%llx  Ip=%llx  HERE=%llx LATEST=%llx STATE=%llx {\n",
@@ -55,13 +55,13 @@ namespace forth_yak {
     U rSize = (R0 - Rs) / S;
     printf("  R [%llx] : ", (ULL) rSize);
     for (int i = 0; i < rSize && i < 50; i++) {
-      SmartPrintNum(Get(R0 - i * S));
+      SmartPrintNum(Get(R0 - (i + 1) * S));
     }
     putchar('\n');
     U dSize = (D0 - Ds) / S;
     printf("  D [%llx] : ", (ULL) dSize);
     for (int i = 0; i < dSize && i < 50; i++) {
-      SmartPrintNum(Get(D0 - i * S));
+      SmartPrintNum(Get(D0 - (i + 1) * S));
     }
     putchar('\n');
 
@@ -108,23 +108,20 @@ namespace forth_yak {
     if (a != b) {
       fprintf(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line,
               (ULL) a, (ULL) b);
-      ++Debug;
-      DumpMem();
+      DumpMem(true);
       assert(0);
     }
   }
 
   void Fatal(const char *msg, int x) {
     fprintf(stderr, " *** %s: Fatal: %s [%d]\n", Argv0, msg, x);
-    ++Debug;
-    DumpMem();
+    DumpMem(true);
     assert(0);
   }
 
   void FatalS(const char *msg, const char *s) {
     fprintf(stderr, " *** %s: Fatal: %s `%s`\n", Argv0, msg, s);
-    ++Debug;
-    DumpMem();
+    DumpMem(true);
     assert(0);
   }
 
@@ -175,7 +172,10 @@ namespace forth_yak {
     }
   }
 
-  void CreateWord(const char *name, Opcode code) {
+  void CreateWord(const char *name, Opcode code, B flags = 0) {
+    if (strlen(name) > LEN_MASK) {
+      FatalS("Creating word with name too long: `%s`", name);
+    }
     U latest = Get(LatestPtr);
     U here = Get(HerePtr);
     fprintf(stderr,
@@ -186,8 +186,9 @@ namespace forth_yak {
 
     Put(here, latest);
     here += S;
-    strcpy(Mem + here, name);
-    here += strlen(name) + 1;
+    Mem[here] = B(strlen(name)) | flags;
+    strcpy(&Mem[here + 1], name);
+    here += 1 /*len */  + strlen(name) + 1 /*nul */ ;
 
     U there = Aligned(here);
     while (here < there) {
@@ -234,12 +235,15 @@ namespace forth_yak {
   U LookupCfa(const char *s) {
     U ptr = Get(LatestPtr);
     while (ptr) {
-      char *name = &Mem[ptr + S];       // name follows link.
+      B flags = Mem[ptr + S];
+      if (flags & HIDDEN_BIT)
+        continue;
+      char *name = &Mem[ptr + S + 1];   // name follows link and lenth/flags byte.
       D(stderr, "LookupCfa(%s) trying ptr=%llx name=<%s>", s, (ULL) ptr,
         name);
       if (streq(s, name)) {
         // code addr follows name and '\0' and alignment.
-        return Aligned(ptr + S + strlen(name) + 1);
+        return Aligned(ptr + S + 1 + strlen(name) + 1);
       }
       ptr = Get(ptr);
     }
@@ -359,6 +363,9 @@ namespace forth_yak {
       case _NE:
         DropPoke(Peek() != Peek(S));
         break;
+      case DUMPMEM:
+        DumpMem(true);
+        break;
       case DO:
       case _DO:
       case LOOP:
@@ -452,6 +459,7 @@ namespace forth_yak {
     CreateWord("mod", MOD);
     CreateWord("=", _EQ);
     CreateWord("!=", _NE);
+    CreateWord("dumpmem", DUMPMEM);
     CreateWord("do", DO);
     CreateWord("?do", _DO);
     CreateWord("loop", LOOP);
