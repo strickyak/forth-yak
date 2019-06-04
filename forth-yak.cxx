@@ -15,30 +15,30 @@ namespace forth_yak {
   char *Mem;
   int MemLen;
 
-  C Ds;                         // data stack ptr
-  C D0;                         // data stack ptr base
-  C Rs;                         // return stack ptr
-  C R0;                         // return stack ptr base
-  C Ip;                         // instruction ptr
-  C W;                          // W register
+  U Ds;                         // data stack ptr
+  U D0;                         // data stack ptr base
+  U Rs;                         // return stack ptr
+  U R0;                         // return stack ptr base
+  U Ip;                         // instruction ptr
+  U W;                          // W register
 
-  C HerePtr;                    // points to Here variable
-  C LatestPtr;                  // points to Latest variable
-  C StatePtr;                   // points to State variable
+  U HerePtr;                    // points to Here variable
+  U LatestPtr;                  // points to Latest variable
+  U StatePtr;                   // points to State variable
 
   int Debug;
 
-   map < C, string > link_map, cfa_map, dfa_map;        // Just for debugging.
+   map < U, string > link_map, cfa_map, dfa_map;        // Just for debugging.
 
-  void SmartPrintNum(C x) {
+  void SmartPrintNum(U x) {
     if (link_map.find(x) != link_map.end()) {
       printf("  L{%s}", link_map[x].c_str());
     } else if (cfa_map.find(x) != cfa_map.end()) {
-      printf("  C{%s}", cfa_map[x].c_str());
+      printf("  U{%s}", cfa_map[x].c_str());
     } else if (dfa_map.find(x) != dfa_map.end()) {
       printf("  D{%s}", dfa_map[x].c_str());
     } else if (-MemLen <= x && x <= MemLen) {
-      printf("  %d", x);
+      printf("  %llx", (ULL) x);
     } else {
       printf("  ---");
     }
@@ -47,17 +47,19 @@ namespace forth_yak {
   void DumpMem() {
     if (!Debug)
       return;
-    printf("Dump: Rs=%d  Ds=%d  Ip=%d  HERE=%d LATEST=%d STATE=%d {\n",
-           Rs, Ds, Ip, Get(HerePtr), Get(LatestPtr), Get(StatePtr));
+    printf
+        ("Dump: Rs=%llx  Ds=%llx  Ip=%llx  HERE=%llx LATEST=%llx STATE=%llx {\n",
+         (ULL) Rs, (ULL) Ds, (ULL) Ip, (ULL) Get(HerePtr),
+         (ULL) Get(LatestPtr), (ULL) Get(StatePtr));
 
-    C rSize = (R0 - Rs) / S;
-    printf("  R [%d] : ", rSize);
+    U rSize = (R0 - Rs) / S;
+    printf("  R [%llx] : ", (ULL) rSize);
     for (int i = 0; i < rSize && i < 50; i++) {
       SmartPrintNum(Get(R0 - i * S));
     }
     putchar('\n');
-    C dSize = (D0 - Ds) / S;
-    printf("  D [%d] : ", dSize);
+    U dSize = (D0 - Ds) / S;
+    printf("  D [%llx] : ", (ULL) dSize);
     for (int i = 0; i < dSize && i < 50; i++) {
       SmartPrintNum(Get(D0 - i * S));
     }
@@ -92,7 +94,7 @@ namespace forth_yak {
           putchar(' ');
       }
       for (int i = j; i < j + 16; i += S) {
-        C x = Get(i);
+        U x = Get(i);
 
         SmartPrintNum(x);
 
@@ -102,10 +104,10 @@ namespace forth_yak {
     printf("}\n");
   }
 
-  void CheckEq(int line, int a, int b) {
+  void CheckEq(int line, U a, U b) {
     if (a != b) {
-      fprintf(stderr, "*** CheckEq Fails: line %d: %d != %d\n", line,
-              a, b);
+      fprintf(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line,
+              (ULL) a, (ULL) b);
       ++Debug;
       DumpMem();
       assert(0);
@@ -174,11 +176,11 @@ namespace forth_yak {
   }
 
   void CreateWord(const char *name, Opcode code) {
-    C latest = Get(LatestPtr);
-    C here = Get(HerePtr);
+    U latest = Get(LatestPtr);
+    U here = Get(HerePtr);
     fprintf(stderr,
-            "CreateWord(%s, %d): HerePtr=%d HERE=%d  latest=%d\n",
-            name, code, HerePtr, here, latest);
+            "CreateWord(%s, %llx): HerePtr=%llx HERE=%llx  latest=%llx\n",
+            name, (ULL) code, (ULL) HerePtr, (ULL) here, (ULL) latest);
     Put(LatestPtr, here);
     link_map[here] = name;
 
@@ -187,7 +189,7 @@ namespace forth_yak {
     strcpy(Mem + here, name);
     here += strlen(name) + 1;
 
-    C there = Aligned(here);
+    U there = Aligned(here);
     while (here < there) {
       Mem[here++] = 0xEE;       // 0xEE for debugging.
     }
@@ -200,16 +202,17 @@ namespace forth_yak {
     dfa_map[here] = name;
   }
 
-  void Comma(C x) {
-    C here = Get(HerePtr);
-    fprintf(stderr, "Comma(%d): HerePtr=%d HERE=%d\n", x, HerePtr, here);
+  void Comma(U x) {
+    U here = Get(HerePtr);
+    fprintf(stderr, "Comma(%llx): HerePtr=%llx HERE=%llx\n", (ULL) x,
+            (ULL) HerePtr, (ULL) here);
     Put(here, x);
     Put(HerePtr, here + S);
   }
 
-  bool WordStrAsNumber(const char *s, C * out) {
-    C z = 0;
-    C sign = 1;
+  bool WordStrAsNumber(const char *s, U * out) {
+    U z = 0;
+    U sign = 1;
     int base = 10;              // TODO hex
     if (*s == '-') {
       sign = -1;
@@ -228,11 +231,12 @@ namespace forth_yak {
     return true;
   }
 
-  C LookupCfa(const char *s) {
-    C ptr = Get(LatestPtr);
+  U LookupCfa(const char *s) {
+    U ptr = Get(LatestPtr);
     while (ptr) {
       char *name = &Mem[ptr + S];       // name follows link.
-      D(stderr, "LookupCfa(%s) trying ptr=%d name=<%s>", s, ptr, name);
+      D(stderr, "LookupCfa(%s) trying ptr=%llx name=<%s>", s, (ULL) ptr,
+        name);
       if (streq(s, name)) {
         // code addr follows name and '\0' and alignment.
         return Aligned(ptr + S + strlen(name) + 1);
@@ -262,13 +266,13 @@ namespace forth_yak {
       }
 
       D(stderr, "lookup up <%s>\n", word);
-      C x = LookupCfa(word);
+      U x = LookupCfa(word);
       D(stderr, "looked up <%s>\n", word);
       if (x) {
         Comma(x);
       } else {
         if (WordStrAsNumber(word, &x)) {
-          C lit = LookupCfa("(lit)");
+          U lit = LookupCfa("(lit)");
           assert(lit);
           Comma(lit);
           Comma(x);
@@ -283,14 +287,15 @@ namespace forth_yak {
 
   void Loop() {
     while (true) {
-      C cfa = Get(Ip);
+      U cfa = Get(Ip);
       if (!cfa) {
         D(stderr, "Got cfa 0; exiting Loop.\n");
         break;
       }
-      C op = Get(cfa);
+      U op = Get(cfa);
       W = cfa + S;
-      fprintf(stderr, "Ip:%d W:%d Op:%d\n", Ip, op, W);
+      fprintf(stderr, "Ip:%llx W:%llx Op:%llx\n", (ULL) Ip, (ULL) op,
+              (ULL) W);
       Ip += S;
 
       switch (op) {
@@ -298,14 +303,14 @@ namespace forth_yak {
         return;
         break;
       case _PLUS:{
-          C x = Pop();
-          C y = Peek();
+          U x = Pop();
+          U y = Peek();
           Poke(x + y);
         }
         break;
       case _DOT:{
-          C x = Pop();
-          printf("%lld ", (long long) x);
+          U x = Pop();
+          printf("%lld. ", (long long) x);
           fflush(stdout);
         }
       case DUP:{
@@ -372,45 +377,45 @@ namespace forth_yak {
   }
 
   void ExecuteWordStr(const char *s) {
-    C cfa = LookupCfa(s);
+    U cfa = LookupCfa(s);
     if (!cfa) {
-      C x;
+      U x;
       if (WordStrAsNumber(s, &x)) {
         // perform literal number.
         Ds -= S;
         Put(Ds, x);
-        D(stderr, " Literal(%lld) ", (long long) x);
+        D(stderr, " Literal(%llx) ", (ULL) x);
         return;
       }
       FatalS("No such word", s);
       return;
     }
-    C op = Get(cfa);
-    D(stderr, " ExecuteWordStr(%s)@%lld(op%d) ", s, (long long) cfa, op);
+    U op = Get(cfa);
+    D(stderr, " ExecuteWordStr(%s)@%llx(op%llx) ", s, (ULL) cfa, (ULL) op);
 
     PushR(0);
     PushR(cfa);
     Ip = Rs;
     PushR(0);
-    C rs = Rs;
+    U rs = Rs;
 
     Loop();
 
     CheckEq(__LINE__, rs, Rs);
     CheckEq(__LINE__, Ip, rs + 2 * S);
-    C r0 = PopR();
+    U r0 = PopR();
     CheckEq(__LINE__, r0, 0);
-    C r1 = PopR();
+    U r1 = PopR();
     CheckEq(__LINE__, r1, cfa);
-    C r2 = PopR();
+    U r2 = PopR();
     CheckEq(__LINE__, r2, 0);
   }
 
-  C Allot(int n) {
-    C z = Get(HerePtr);
+  U Allot(int n) {
+    U z = Get(HerePtr);
     Put(HerePtr, z + n);
-    fprintf(stderr, "Allot(%d) : Here %d -> Here %d\n", n, z,
-            Get(HerePtr));
+    fprintf(stderr, "Allot(%llx) : Here %llx -> Here %llx\n", (ULL) n,
+            (ULL) z, (ULL) Get(HerePtr));
     return z;
   }
 
@@ -418,7 +423,7 @@ namespace forth_yak {
     Mem = new char[MemLen];
     memset(Mem, 0, MemLen);
 
-    C ptr = LINELEN;
+    U ptr = LINELEN;
     HerePtr = ptr;
     ptr += S;
     LatestPtr = ptr;

@@ -29,6 +29,7 @@ namespace forth_yak {
    error-- unknown cellsize;
 #endif
   typedef unsigned char B;      // Byte
+  typedef unsigned long long ULL;
 
   constexpr size_t S = sizeof(C);
   constexpr size_t LINELEN = 500;
@@ -37,17 +38,17 @@ namespace forth_yak {
   extern int MemLen;
 
   typedef union {
-    C c;
+    U c;
     char b[S];
   } Both;
 
-  extern C HerePtr;             // points to Here variable
-  extern C LatestPtr;           // points to Latest variable
-  extern C StatePtr;            // points to State variable
-  extern C Ds;                  // data stack ptr
-  extern C Rs;                  // return stack ptr
-  extern C Ip;                  // instruction ptr
-  extern C W;                   // W register
+  extern U HerePtr;             // points to Here variable
+  extern U LatestPtr;           // points to Latest variable
+  extern U StatePtr;            // points to State variable
+  extern U Ds;                  // data stack ptr
+  extern U Rs;                  // return stack ptr
+  extern U Ip;                  // instruction ptr
+  extern U W;                   // W register
   extern const char *Argv0;
 
   typedef enum {
@@ -85,59 +86,59 @@ namespace forth_yak {
 
   // Get & Put.
 
-  inline C Get(C i) {
-    return *(C *) (Mem + i);
+  inline U Get(U i) {
+    return *(U *) (Mem + i);
   };
 
-  inline void Put(C i, C x) {
-    *(C *) (Mem + i) = x;
+  inline void Put(U i, U x) {
+    *(U *) (Mem + i) = x;
   };
 
   // Peek, Poke, Push, Pop.
-  inline C Pop() {
-    C p = Ds;
+  inline U Pop() {
+    U p = Ds;
     Ds += S;
     return Get(p);
   }
 
-  inline void Push(C x, int i = 0) {
+  inline void Push(U x, int i = 0) {
     Ds -= S;
     Put(Ds, x);
   }
 
-  inline void Poke(C x, int i = 0) {
+  inline void Poke(U x, int i = 0) {
     Put(Ds + S * i, x);
   }
 
-  inline C Peek(int i = 0) {
+  inline U Peek(int i = 0) {
     return Get(Ds + S * i);
   }
 
-  inline void DropPoke(C x) {
+  inline void DropPoke(U x) {
     Ds += S;
     Put(Ds, x);
   }
 
-  inline C PopR() {
+  inline U PopR() {
     Rs += S;
     return Get(Rs - S);
   }
 
-  inline void PushR(C x, int i = 0) {
+  inline void PushR(U x, int i = 0) {
     Rs -= S;
     Put(Rs, x);
   }
 
-  inline void PokeR(C x, int i = 0) {
+  inline void PokeR(U x, int i = 0) {
     Put(Rs + S * i, x);
   }
 
-  inline C PeekR(int i = 0) {
+  inline U PeekR(int i = 0) {
     return Get(Rs + S * i);
   }
 
-  inline C Aligned(C x) {
-    constexpr C m = S - 1;
+  inline U Aligned(U x) {
+    constexpr U m = S - 1;
     return (x + m) & (~m);
   }
 }                               // namespace forth_yak
