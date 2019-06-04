@@ -67,6 +67,15 @@ namespace forth_yak {
     MOD,
     _EQ,
     _NE,
+    DO,
+    _DO,
+    LOOP,
+    UNLOOP,
+    IF,
+    ELSE,
+    THEN,
+    BRANCH,
+    BRANCH0,
   } Opcode;
 
   inline bool streq(const char *p, const char *q) {

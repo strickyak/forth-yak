@@ -354,6 +354,15 @@ namespace forth_yak {
       case _NE:
         DropPoke(Peek() != Peek(S));
         break;
+      case DO:
+      case _DO:
+      case LOOP:
+      case UNLOOP:
+      case IF:
+      case ELSE:
+      case THEN:
+      case BRANCH:
+      case BRANCH0:
       default:{
           Fatal("Bad op", op);
         }
@@ -438,6 +447,13 @@ namespace forth_yak {
     CreateWord("mod", MOD);
     CreateWord("=", _EQ);
     CreateWord("!=", _NE);
+    CreateWord("do", DO);
+    CreateWord("?do", _DO);
+    CreateWord("loop", LOOP);
+    CreateWord("unloop", UNLOOP);
+    CreateWord("if", IF);
+    CreateWord("else", ELSE);
+    CreateWord("then", THEN);
   }
 
   void Run() {
