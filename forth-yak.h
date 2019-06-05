@@ -46,8 +46,8 @@ extern U LatestPtr;             // points to Latest variable
 extern U StatePtr;              // points to State variable
 extern U Ds;                    // data stack ptr
 extern U Rs;                    // return stack ptr
-extern U Ds0;                    // data stack base
-extern U Rs0;                    // return stack base
+extern U Ds0;                   // data stack base
+extern U Rs0;                   // return stack base
 extern U Ip;                    // instruction ptr
 extern U W;                     // W register
 extern const char *Argv0;
@@ -180,17 +180,18 @@ inline U Aligned(U x)
 // to read from stdin after slurping those files.
 // After the last EOF is read, this will exit(0) the entire program.
 class InputKey {
- public:
-  void Init(const char* text, int filec, const char* filev[], bool add_stdin);
+public:
+  void Init(const char *text, int filec, const char *filev[],
+            bool add_stdin);
   U Key();
- private:
+private:
   void Advance();
 
-  const char* text_;
+  const char *text_;
   int filec_;
   const char **filev_;
   bool add_stdin_;
-  FILE* current_;
+  FILE *current_;
   bool isatty_;
   bool next_ok_;
 };

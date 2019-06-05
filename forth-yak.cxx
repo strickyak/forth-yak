@@ -15,9 +15,9 @@ char *Mem;
 int MemLen;
 
 U Ds;                           // data stack ptr
-U Ds0;                           // data stack ptr base
+U Ds0;                          // data stack ptr base
 U Rs;                           // return stack ptr
-U Rs0;                           // return stack ptr base
+U Rs0;                          // return stack ptr base
 U Ip;                           // instruction ptr
 U W;                            // W register
 
@@ -142,7 +142,9 @@ void FatalS(const char *msg, const char *s)
   assert(0);
 }
 
-void InputKey::Init(const char* text, int filec, const char* filev[], bool add_stdin) {
+void InputKey::Init(const char *text, int filec, const char *filev[],
+                    bool add_stdin)
+{
   text_ = text;
   filec_ = filec;
   filev_ = filev;
@@ -153,7 +155,8 @@ void InputKey::Init(const char* text, int filec, const char* filev[], bool add_s
   Advance();
 }
 
-void InputKey::Advance() {
+void InputKey::Advance()
+{
   if (current_ == stdin) {
     current_ = nullptr;
     return;
@@ -180,27 +183,28 @@ void InputKey::Advance() {
   --filec_, ++filev_;
 }
 
-U InputKey::Key() {
+U InputKey::Key()
+{
   if (*text_) {
-    return *(const unsigned char*)(text_++);
+    return *(const unsigned char *) (text_++);
   }
   while (true) {
-	  if (!current_) {
-	    fprintf(stderr, "  *EOF*  \n");
-	    exit(0);
-	  }
-	  if (next_ok_) {
-	    fprintf(stderr, " ok ");
-	    next_ok_ = false;
-	  }
-	  int ch = fgetc(current_);
-	  if (ch == '\n' && isatty_) {
-	    next_ok_ = true;
-	  }
-	  if (ch != EOF) {
-	    return (U)ch;
-	  }
-	  Advance();
+    if (!current_) {
+      fprintf(stderr, "  *EOF*  \n");
+      exit(0);
+    }
+    if (next_ok_) {
+      fprintf(stderr, " ok ");
+      next_ok_ = false;
+    }
+    int ch = fgetc(current_);
+    if (ch == '\n' && isatty_) {
+      next_ok_ = true;
+    }
+    if (ch != EOF) {
+      return (U) ch;
+    }
+    Advance();
   }
 }
 
@@ -316,7 +320,8 @@ bool WordStrAsNumber(const char *s, U * out)
   return true;
 }
 
-void Words() {
+void Words()
+{
   U ptr = Get(LatestPtr);
   while (ptr) {
     B flags = Mem[ptr + S];
@@ -328,7 +333,8 @@ void Words() {
   }
 }
 
-U LookupCfa(const char *s, B * flags_out = nullptr) {
+U LookupCfa(const char *s, B * flags_out = nullptr)
+{
   U ptr = Get(LatestPtr);
   while (ptr) {
     B flags = Mem[ptr + S];
@@ -416,7 +422,7 @@ void Loop()
       return;
       break;
     case _PLUS:
-      DropPoke(Peek(1) + Peek());  // Unsigned should be same as signed 2's complement.
+      DropPoke(Peek(1) + Peek());       // Unsigned should be same as signed 2's complement.
       break;
     case _DOT:{
         U x = Pop();
@@ -469,19 +475,22 @@ void Loop()
       Poke(Aligned(Peek()));
       break;
     case _MINUS:
-      DropPoke(Peek(1) - Peek());  // Unsigned should be same as signed 2's complement.
+      DropPoke(Peek(1) - Peek());       // Unsigned should be same as signed 2's complement.
       break;
     case _TIMES:
-      fprintf(stderr, "TIMES: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) * (C)Peek());
-      DropPoke(U( (C)Peek(1) * (C)Peek()));
+      fprintf(stderr, "TIMES: %d %d %d", (C) Peek(1), (C) Peek(),
+              (C) Peek(1) * (C) Peek());
+      DropPoke(U((C) Peek(1) * (C) Peek()));
       break;
     case _DIVIDE:
-      fprintf(stderr, "DIV: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) / (C)Peek());
-      DropPoke(U( (C)Peek(1) / (C)Peek()));
+      fprintf(stderr, "DIV: %d %d %d", (C) Peek(1), (C) Peek(),
+              (C) Peek(1) / (C) Peek());
+      DropPoke(U((C) Peek(1) / (C) Peek()));
       break;
     case MOD:
-      fprintf(stderr, "MOD: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) % (C)Peek());
-      DropPoke(U( (C)Peek(1) % (C)Peek()));
+      fprintf(stderr, "MOD: %d %d %d", (C) Peek(1), (C) Peek(),
+              (C) Peek(1) % (C) Peek());
+      DropPoke(U((C) Peek(1) % (C) Peek()));
       break;
     case _EQ:
       DropPoke(Peek(1) == Peek());
@@ -516,8 +525,8 @@ void Loop()
     case MUST:
       if (Pop() == 0) {
         DumpMem(true);
-	fprintf(stderr, " *** MUST failed\n");
-	assert(0);
+        fprintf(stderr, " *** MUST failed\n");
+        assert(0);
       }
       break;
     case IMMEDIATE:
@@ -663,10 +672,10 @@ void Init()
   Put(LatestPtr, 0);
   Put(StatePtr, 0);
 
-  Rs0 = Rs = MemLen - S;  // Waste top word.
-  Ds0 = Ds = MemLen - S - 128*S;  // 128 slots on Return Stack.
-  Put(Rs0, 0xEEEE);  // Debugging mark.
-  Put(Ds0, 0xEEEE);  // Debugging mark.
+  Rs0 = Rs = MemLen - S;        // Waste top word.
+  Ds0 = Ds = MemLen - S - 128 * S;      // 128 slots on Return Stack.
+  Put(Rs0, 0xEEEE);             // Debugging mark.
+  Put(Ds0, 0xEEEE);             // Debugging mark.
 
   CreateWord("+", _PLUS);
   CreateWord(".", _DOT);
@@ -760,12 +769,13 @@ void PrintIntSizes()
   printf("-42 => unsigned char %d\n", (int) (unsigned char) (-42));
 }
 
-void Main(int argc, const char *argv[]) {
-  MemLen = 0x10000;  // Default: 64 kib RAM.
+void Main(int argc, const char *argv[])
+{
+  MemLen = 0x10000;             // Default: 64 kib RAM.
 
   Argv0 = argv[0];
   ++argv, --argc;
-  const char* text = "";
+  const char *text = "";
   bool interactive = false;
   while (argc > 0 && argv[0][0] == '-') {
     switch (argv[0][1]) {
@@ -798,11 +808,13 @@ void Main(int argc, const char *argv[]) {
   Interpret();
 }
 
-void Test() {
+void Test()
+{
   Init();
 }
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char *argv[])
+{
 #ifdef TEST
   Test();
 #else
