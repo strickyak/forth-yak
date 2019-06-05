@@ -52,8 +52,7 @@ void DumpMem(bool force = false)
     return;
   printf
       ("Dump: Rs=%llx  Ds=%llx  Ip=%llx  HERE=%llx LATEST=%llx STATE=%llx {\n",
-       (ULL) Rs, (ULL) Ds, (ULL) Ip, (ULL) Get(HerePtr),
-       (ULL) Get(LatestPtr), (ULL) Get(StatePtr));
+       (ULL) Rs, (ULL) Ds, (ULL) Ip, (ULL) Get(HerePtr), (ULL) Get(LatestPtr), (ULL) Get(StatePtr));
 
   U rSize = (Rs0 - Rs) / S;
   printf("  R [%llx] : ", (ULL) rSize);
@@ -111,8 +110,7 @@ void DumpMem(bool force = false)
 void CheckEq(int line, U a, U b)
 {
   if (a != b) {
-    fprintf(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line,
-            (ULL) a, (ULL) b);
+    fprintf(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line, (ULL) a, (ULL) b);
     DumpMem(true);
     assert(0);
   }
@@ -142,8 +140,7 @@ void FatalS(const char *msg, const char *s)
   assert(0);
 }
 
-void InputKey::Init(const char *text, int filec, const char *filev[],
-                    bool add_stdin)
+void InputKey::Init(const char *text, int filec, const char *filev[], bool add_stdin)
 {
   text_ = text;
   filec_ = filec;
@@ -292,8 +289,7 @@ void Comma(U x)
 {
   U here = Get(HerePtr);
   SmartPrintNum(x, stderr);
-  fprintf(stderr, " Comma(%llx): HerePtr=%llx HERE=%llx\n", (ULL) x,
-          (ULL) HerePtr, (ULL) here);
+  fprintf(stderr, " Comma(%llx): HerePtr=%llx HERE=%llx\n", (ULL) x, (ULL) HerePtr, (ULL) here);
   Put(here, x);
   Put(HerePtr, here + S);
 }
@@ -341,8 +337,7 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
     if (flags & HIDDEN_BIT)
       continue;
     char *name = &Mem[ptr + S + 1];     // name follows link and lenth/flags byte.
-    D(stderr, "LookupCfa(%s) trying ptr=%llx name=<%s>", s, (ULL) ptr,
-      name);
+    D(stderr, "LookupCfa(%s) trying ptr=%llx name=<%s>", s, (ULL) ptr, name);
     if (streq(s, name)) {
       // code addr follows name and '\0' and alignment.
       if (flags_out)
@@ -412,8 +407,7 @@ void Loop()
     {
       SmartPrintNum(cfa, stderr);
       U compiling = Get(StatePtr);
-      fprintf(stderr, "LOOP Ip:%llx Op:%llx W:%llx , %s\n", (ULL) Ip,
-              (ULL) op, (ULL) W, compiling ? "compiling" : "");
+      fprintf(stderr, "LOOP Ip:%llx Op:%llx W:%llx , %s\n", (ULL) Ip, (ULL) op, (ULL) W, compiling ? "compiling" : "");
     }
     Ip += S;
 
@@ -478,18 +472,15 @@ void Loop()
       DropPoke(Peek(1) - Peek());       // Unsigned should be same as signed 2's complement.
       break;
     case _TIMES:
-      fprintf(stderr, "TIMES: %d %d %d", (C) Peek(1), (C) Peek(),
-              (C) Peek(1) * (C) Peek());
+      fprintf(stderr, "TIMES: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) * (C) Peek());
       DropPoke(U((C) Peek(1) * (C) Peek()));
       break;
     case _DIVIDE:
-      fprintf(stderr, "DIV: %d %d %d", (C) Peek(1), (C) Peek(),
-              (C) Peek(1) / (C) Peek());
+      fprintf(stderr, "DIV: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) / (C) Peek());
       DropPoke(U((C) Peek(1) / (C) Peek()));
       break;
     case MOD:
-      fprintf(stderr, "MOD: %d %d %d", (C) Peek(1), (C) Peek(),
-              (C) Peek(1) % (C) Peek());
+      fprintf(stderr, "MOD: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) % (C) Peek());
       DropPoke(U((C) Peek(1) % (C) Peek()));
       break;
     case _EQ:
@@ -651,8 +642,7 @@ U Allot(int n)
 {
   U z = Get(HerePtr);
   Put(HerePtr, z + n);
-  fprintf(stderr, "Allot(%llx) : Here %llx -> Here %llx\n", (ULL) n,
-          (ULL) z, (ULL) Get(HerePtr));
+  fprintf(stderr, "Allot(%llx) : Here %llx -> Here %llx\n", (ULL) n, (ULL) z, (ULL) Get(HerePtr));
   return z;
 }
 
@@ -723,8 +713,7 @@ void Interpret1()
   B flags = 0;
   U cfa = LookupCfa(word, &flags);
   U compiling = Get(StatePtr);
-  fprintf(stderr, "Interpret1: word=`%s` flags=%d cfa=%d , %s\n", word,
-          flags, cfa, compiling ? "compiling" : "");
+  fprintf(stderr, "Interpret1: word=`%s` flags=%d cfa=%d , %s\n", word, flags, cfa, compiling ? "compiling" : "");
   if (cfa) {
     // Found a word.
     if (compiling) {

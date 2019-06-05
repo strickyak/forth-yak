@@ -181,8 +181,7 @@ inline U Aligned(U x)
 // After the last EOF is read, this will exit(0) the entire program.
 class InputKey {
 public:
-  void Init(const char *text, int filec, const char *filev[],
-            bool add_stdin);
+  void Init(const char *text, int filec, const char *filev[], bool add_stdin);
   U Key();
 private:
   void Advance();
