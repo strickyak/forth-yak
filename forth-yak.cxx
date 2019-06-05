@@ -1,24 +1,23 @@
 #include "forth-yak.h"
 
+#include <unistd.h>
+
 #include <map>
 #include <string>
-
-#define NEW 1
 
 using std::map;
 using std::string;
 
 const char *Argv0;
-FILE *ForthInputFile;
 bool QuitAfterSlurping;
 
 char *Mem;
 int MemLen;
 
 U Ds;                           // data stack ptr
-U D0;                           // data stack ptr base
+U Ds0;                           // data stack ptr base
 U Rs;                           // return stack ptr
-U R0;                           // return stack ptr base
+U Rs0;                           // return stack ptr base
 U Ip;                           // instruction ptr
 U W;                            // W register
 
@@ -29,6 +28,8 @@ U StatePtr;                     // points to State variable
 int Debug;
 
 map < U, string > link_map, cfa_map, dfa_map;   // Just for debugging.
+
+InputKey input_key;
 
 void SmartPrintNum(U x, FILE * fd = stdout)
 {
@@ -54,16 +55,16 @@ void DumpMem(bool force = false)
        (ULL) Rs, (ULL) Ds, (ULL) Ip, (ULL) Get(HerePtr),
        (ULL) Get(LatestPtr), (ULL) Get(StatePtr));
 
-  U rSize = (R0 - Rs) / S;
+  U rSize = (Rs0 - Rs) / S;
   printf("  R [%llx] : ", (ULL) rSize);
   for (int i = 0; i < rSize && i < 50; i++) {
-    SmartPrintNum(Get(R0 - (i + 1) * S));
+    SmartPrintNum(Get(Rs0 - (i + 1) * S));
   }
   putchar('\n');
-  U dSize = (D0 - Ds) / S;
+  U dSize = (Ds0 - Ds) / S;
   printf("  D [%llx] : ", (ULL) dSize);
   for (int i = 0; i < dSize && i < 50; i++) {
-    SmartPrintNum(Get(D0 - (i + 1) * S));
+    SmartPrintNum(Get(Ds0 - (i + 1) * S));
   }
   putchar('\n');
 
@@ -77,7 +78,7 @@ void DumpMem(bool force = false)
     if (!something)
       continue;
 
-    printf("%c[%4d=%04x] ", (j == expect) ? ' ' : '*', j, j);
+    printf("%c[%4d=%04x] ", (j == expect) ? ' ' : '=', j, j);
     expect = j + 16;
 
     for (int i = j; i < j + 16; i++) {
@@ -141,9 +142,71 @@ void FatalS(const char *msg, const char *s)
   assert(0);
 }
 
+void InputKey::Init(const char* text, int filec, const char* filev[], bool add_stdin) {
+  text_ = text;
+  filec_ = filec;
+  filev_ = filev;
+  add_stdin_ = add_stdin;
+  current_ = nullptr;
+  isatty_ = false;
+  next_ok_ = false;
+  Advance();
+}
+
+void InputKey::Advance() {
+  if (current_ == stdin) {
+    current_ = nullptr;
+    return;
+  }
+  if (current_) {
+    // Close current file after it is done.
+    fclose(current_);
+  }
+  if (filec_ == 0) {
+    if (add_stdin_) {
+      current_ = stdin;
+      isatty_ = (isatty(0) == 1);
+      fprintf(stderr, " ok ");
+    } else {
+      current_ = nullptr;
+    }
+    return;
+  }
+  current_ = fopen(filev_[0], "r");
+  if (!current_) {
+    FatalS("cannot open input file", filev_[0]);
+  }
+  isatty_ = false;
+  --filec_, ++filev_;
+}
+
+U InputKey::Key() {
+  if (*text_) {
+    return *(const unsigned char*)(text_++);
+  }
+  while (true) {
+	  if (!current_) {
+	    fprintf(stderr, "  *EOF*  \n");
+	    exit(0);
+	  }
+	  if (next_ok_) {
+	    fprintf(stderr, " ok ");
+	    next_ok_ = false;
+	  }
+	  int ch = fgetc(current_);
+	  if (ch == '\n' && isatty_) {
+	    next_ok_ = true;
+	  }
+	  if (ch != EOF) {
+	    return (U)ch;
+	  }
+	  Advance();
+  }
+}
+
 void NewKey()
 {
-  Push((U) getchar());
+  Push(input_key.Key());
 }
 
 U PopNewKeyCheckEOF()
@@ -253,8 +316,19 @@ bool WordStrAsNumber(const char *s, U * out)
   return true;
 }
 
-U LookupCfa(const char *s, B * flags_out = nullptr)
-{
+void Words() {
+  U ptr = Get(LatestPtr);
+  while (ptr) {
+    B flags = Mem[ptr + S];
+    if (flags & HIDDEN_BIT)
+      continue;
+    char *name = &Mem[ptr + S + 1];     // name follows link and lenth/flags byte.
+    printf(" %s", name);
+    ptr = Get(ptr);
+  }
+}
+
+U LookupCfa(const char *s, B * flags_out = nullptr) {
   U ptr = Get(LatestPtr);
   while (ptr) {
     B flags = Mem[ptr + S];
@@ -281,11 +355,7 @@ void ColonDefinition()
     if (compiling)
       Fatal("cannot use `:` when already compiling", 0);
   }
-#ifdef NEW
   char *name = NewWordStr();
-#else
-  char *name = NextWordInput();
-#endif
   if (!name) {
     Fatal("EOF during colon definition", 0);
   }
@@ -294,11 +364,7 @@ void ColonDefinition()
   CreateWord(name, _ENTER_);
   Put(StatePtr, 1);             // Compiling state.
   while (1) {
-#ifdef NEW
     char *word = NewWordStr();
-#else
-    char *word = NextWordInput();
-#endif
     if (!word) {
       Fatal("EOF during colon definition", 0);
     }
@@ -349,15 +415,12 @@ void Loop()
     case _END:
       return;
       break;
-    case _PLUS:{
-        U x = Pop();
-        U y = Peek();
-        Poke(x + y);
-      }
+    case _PLUS:
+      DropPoke(Peek(1) + Peek());  // Unsigned should be same as signed 2's complement.
       break;
     case _DOT:{
         U x = Pop();
-        printf("%lld. ", (long long) x);
+        printf("%lld. ", (long long) C(x));
         fflush(stdout);
       }
     case DUP:{
@@ -406,29 +469,55 @@ void Loop()
       Poke(Aligned(Peek()));
       break;
     case _MINUS:
-      DropPoke(Peek() - Peek(1));
+      DropPoke(Peek(1) - Peek());  // Unsigned should be same as signed 2's complement.
       break;
     case _TIMES:
-      DropPoke(Peek() * Peek(1));
+      fprintf(stderr, "TIMES: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) * (C)Peek());
+      DropPoke(U( (C)Peek(1) * (C)Peek()));
       break;
     case _DIVIDE:
-      DropPoke(Peek() / Peek(1));
+      fprintf(stderr, "DIV: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) / (C)Peek());
+      DropPoke(U( (C)Peek(1) / (C)Peek()));
       break;
     case MOD:
-      DropPoke(Peek() % Peek(1));
+      fprintf(stderr, "MOD: %d %d %d", (C)Peek(1), (C)Peek(), (C)Peek(1) % (C)Peek());
+      DropPoke(U( (C)Peek(1) % (C)Peek()));
       break;
     case _EQ:
-      DropPoke(Peek() == Peek(1));
+      DropPoke(Peek(1) == Peek());
       break;
     case _NE:
-      DropPoke(Peek() != Peek(1));
+      DropPoke(Peek(1) != Peek());
+      break;
+    case _LT:
+      DropPoke(Peek(1) < Peek());
+      break;
+    case _LE:
+      DropPoke(Peek(1) <= Peek());
+      break;
+    case _GT:
+      DropPoke(Peek(1) > Peek());
+      break;
+    case _GE:
+      DropPoke(Peek(1) >= Peek());
       break;
     case DUMPMEM:
       DumpMem(true);
       break;
+    case WORDS:
+      Words();
+      break;
+    case R0:
+      Push(Rs0);
+      break;
+    case S0:
+      Push(Ds0);
+      break;
     case MUST:
       if (Pop() == 0) {
         DumpMem(true);
+	fprintf(stderr, " *** MUST failed\n");
+	assert(0);
       }
       break;
     case IMMEDIATE:
@@ -574,8 +663,10 @@ void Init()
   Put(LatestPtr, 0);
   Put(StatePtr, 0);
 
-  R0 = Rs = MemLen - 32;
-  D0 = Ds = MemLen - 32 - 1024;
+  Rs0 = Rs = MemLen - S;  // Waste top word.
+  Ds0 = Ds = MemLen - S - 128*S;  // 128 slots on Return Stack.
+  Put(Rs0, 0xEEEE);  // Debugging mark.
+  Put(Ds0, 0xEEEE);  // Debugging mark.
 
   CreateWord("+", _PLUS);
   CreateWord(".", _DOT);
@@ -592,8 +683,16 @@ void Init()
   CreateWord("/", _DIVIDE);
   CreateWord("mod", MOD);
   CreateWord("=", _EQ);
+  CreateWord("==", _EQ);
   CreateWord("!=", _NE);
+  CreateWord("<", _LT);
+  CreateWord("<=", _LE);
+  CreateWord(">", _GT);
+  CreateWord(">=", _GE);
   CreateWord("dumpmem", DUMPMEM);
+  CreateWord("words", WORDS);
+  CreateWord("r0", R0);
+  CreateWord("s0", S0);
   CreateWord("must", MUST);
   CreateWord("immediate", IMMEDIATE, IMMEDIATE_BIT);
   CreateWord("hidden", HIDDEN);
@@ -651,11 +750,6 @@ void Interpret()
   }
 }
 
-void ShutDown()
-{
-  delete Mem;
-}
-
 void PrintIntSizes()
 {
   printf("short %d\n", sizeof(short));
@@ -666,52 +760,52 @@ void PrintIntSizes()
   printf("-42 => unsigned char %d\n", (int) (unsigned char) (-42));
 }
 
-int main(int argc, const char *argv[])
-{
-  MemLen = CELLSIZE < 4 ? 0x10000 : 1000000;    // Default: a million bytes, unless 16-bit.
+void Main(int argc, const char *argv[]) {
+  MemLen = 0x10000;  // Default: 64 kib RAM.
 
   Argv0 = argv[0];
   ++argv, --argc;
+  const char* text = "";
+  bool interactive = false;
   while (argc > 0 && argv[0][0] == '-') {
     switch (argv[0][1]) {
     case 'm':
       MemLen = atoi(&argv[0][2]);
       break;
-    case 'x':
+    case 'd':
       Debug = atoi(&argv[0][2]);
-      break;
-    case 'q':
-      QuitAfterSlurping = true;
       break;
     case 'S':
       PrintIntSizes();
+      break;
+    case 'i':
+      interactive = true;
+      break;
+    case 'c':
+      text = &argv[0][2];
       break;
     default:
       Fatal("Bad flag", argv[0][1]);
     }
     ++argv, --argc;
   }
-  Init();
 
-/*
-    for (int i = 0; i < argc; i++) {
-      fprintf(stderr, "[Forth input from %s]\n", argv[i]);
-      ForthInputFile = fopen(argv[i], "r");
-      if (!ForthInputFile) {
-        FatalS("cannot open input file", argv[i]);
-      }
-      Run();
-      fclose(ForthInputFile);
-    }
-*/
-  if (!QuitAfterSlurping) {
-    fprintf(stderr, "[Forth input from stdin]\n");
-    ForthInputFile = stdin;
-#ifdef NEW
-    Interpret();
-#else
-    Run();
-#endif
+  if (!interactive) {
+    interactive = (argc == 0) && (!*text);
   }
-  ShutDown();
+  input_key.Init(text, argc, argv, interactive);
+  Init();
+  Interpret();
+}
+
+void Test() {
+  Init();
+}
+
+int main(int argc, const char *argv[]) {
+#ifdef TEST
+  Test();
+#else
+  Main(argc, argv);
+#endif
 }

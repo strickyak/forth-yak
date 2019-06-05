@@ -46,6 +46,8 @@ extern U LatestPtr;             // points to Latest variable
 extern U StatePtr;              // points to State variable
 extern U Ds;                    // data stack ptr
 extern U Rs;                    // return stack ptr
+extern U Ds0;                    // data stack base
+extern U Rs0;                    // return stack base
 extern U Ip;                    // instruction ptr
 extern U W;                     // W register
 extern const char *Argv0;
@@ -68,7 +70,14 @@ typedef enum {
   MOD,
   _EQ,
   _NE,
+  _LT,
+  _LE,
+  _GT,
+  _GE,
   DUMPMEM,
+  WORDS,
+  R0,
+  S0,
   MUST,
   IMMEDIATE,
   HIDDEN,
@@ -165,3 +174,23 @@ inline U Aligned(U x)
   constexpr U m = S - 1;
   return (x + m) & (~m);
 }
+
+// Class InputKey handles all FORTH input for KEY and WORD.
+// Initialize it with a list of files to slurp, and whether
+// to read from stdin after slurping those files.
+// After the last EOF is read, this will exit(0) the entire program.
+class InputKey {
+ public:
+  void Init(const char* text, int filec, const char* filev[], bool add_stdin);
+  U Key();
+ private:
+  void Advance();
+
+  const char* text_;
+  int filec_;
+  const char **filev_;
+  bool add_stdin_;
+  FILE* current_;
+  bool isatty_;
+  bool next_ok_;
+};
