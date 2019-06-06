@@ -1,4 +1,4 @@
-#include "forth-yak.h"
+#include "fy.h"
 
 #include <unistd.h>
 
@@ -126,17 +126,42 @@ U CheckU(U x)
   return x;
 }
 
-void Fatal(const char *msg, int x)
+int Fatality;
+
+void Fatal(const char *msg)
 {
-  fprintf(stderr, " *** %s: Fatal: %s [%d]\n", Argv0, msg, x);
-  DumpMem(true);
+  ++Fatality;
+  fprintf(stderr, " *** %s: Fatal: %s\n", Argv0, msg);
+  if (Fatality < 2)
+    DumpMem(true);
+  assert(0);
+}
+
+void FatalU(const char *msg, int x)
+{
+  ++Fatality;
+  fprintf(stderr, " *** %s: FatalU: %s [0x%llx]\n", Argv0, msg, (ULL) x);
+  if (Fatality < 2)
+    DumpMem(true);
+  assert(0);
+}
+
+void FatalI(const char *msg, int x)
+{
+  ++Fatality;
+  fprintf(stderr, " *** %s: FatalI: %s [%d]\n", Argv0, msg, x);
+  if (Fatality < 2)
+    DumpMem(true);
   assert(0);
 }
 
 void FatalS(const char *msg, const char *s)
 {
-  fprintf(stderr, " *** %s: Fatal: %s `%s`\n", Argv0, msg, s);
-  DumpMem(true);
+  ++Fatality;
+  if (Fatality < 2)
+    fprintf(stderr, " *** %s: FatalS: %s `%s`\n", Argv0, msg, s);
+  if (Fatality < 2)
+    DumpMem(true);
   assert(0);
 }
 
@@ -166,6 +191,7 @@ void InputKey::Advance()
     if (add_stdin_) {
       current_ = stdin;
       isatty_ = (isatty(0) == 1);
+      fflush(stdout);
       fprintf(stderr, " ok ");
     } else {
       current_ = nullptr;
@@ -182,10 +208,12 @@ void InputKey::Advance()
 
 U InputKey::Key()
 {
+  fflush(stdout);
   if (*text_) {
     return *(const unsigned char *) (text_++);
   }
   while (true) {
+    fflush(stdout);
     if (!current_) {
       fprintf(stderr, "  *EOF*  \n");
       exit(0);
@@ -199,20 +227,21 @@ U InputKey::Key()
       next_ok_ = true;
     }
     if (ch != EOF) {
+      // fprintf(stderr, "<%c=%d>", ch, ch);
       return (U) ch;
     }
     Advance();
   }
 }
 
-void NewKey()
+void Key()
 {
   Push(input_key.Key());
 }
 
 U PopNewKeyCheckEOF()
 {
-  NewKey();
+  Key();
   U c = Pop();
   if (c & 256) {                // If EOF
     fprintf(stderr, "<<<<< Exiting on EOF >>>>>\n");
@@ -222,7 +251,7 @@ U PopNewKeyCheckEOF()
   return c;
 }
 
-void NewWord()
+void Word()
 {
   U c = PopNewKeyCheckEOF();
   while (c <= 32) {             // Skip white space (control chars are white space).
@@ -231,7 +260,7 @@ void NewWord()
   int i = 0;
   while (c > 32) {
     if (i > 31) {
-      Fatal("Input word too big", i);
+      FatalI("Input word too big", i);
     }
     i++;
     Mem[i] = c;                 // Word starts at Mem[1]
@@ -241,12 +270,12 @@ void NewWord()
   Mem[0] = i;                   // Save count at Mem[0]
   Push(1);                      // Pointer to word chars.
   Push(i);                      // Length.
-  D(stderr, "<<<NewWord: %s>>>\n", Mem + 1);
+  D(stderr, "<<<Word: %s>>>\n", Mem + 1);
 }
 
-char *NewWordStr()
+char *WordStr()
 {
-  NewWord();
+  Word();
   Pop();                        // pop length
   U wordIndex = Pop();          // pop word; should be 1.
   fprintf(stderr, " >>%s<< ", &Mem[wordIndex]);
@@ -338,7 +367,7 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
       continue;
     char *name = &Mem[ptr + S + 1];     // name follows link and lenth/flags byte.
     D(stderr, "LookupCfa(%s) trying ptr=%llx name=<%s>", s, (ULL) ptr, name);
-    if (streq(s, name)) {
+    if (strcaseeq(s, name)) {
       // code addr follows name and '\0' and alignment.
       if (flags_out)
         *flags_out = flags;
@@ -354,23 +383,23 @@ void ColonDefinition()
   {
     U compiling = Get(StatePtr);
     if (compiling)
-      Fatal("cannot use `:` when already compiling", 0);
+      Fatal("cannot use `:` when already compiling");
   }
-  char *name = NewWordStr();
+  char *name = WordStr();
   if (!name) {
-    Fatal("EOF during colon definition", 0);
+    Fatal("EOF during colon definition");
   }
 
   D(stderr, "COLON name <%s>\n", name);
   CreateWord(name, _ENTER_);
   Put(StatePtr, 1);             // Compiling state.
   while (1) {
-    char *word = NewWordStr();
+    char *word = WordStr();
     if (!word) {
-      Fatal("EOF during colon definition", 0);
+      Fatal("EOF during colon definition");
     }
     D(stderr, "COLON word <%s>\n", word);
-    if (streq(word, ";")) {
+    if (strcaseeq(word, ";")) {
       break;
     }
 
@@ -407,7 +436,9 @@ void Loop()
     {
       SmartPrintNum(cfa, stderr);
       U compiling = Get(StatePtr);
-      fprintf(stderr, "LOOP Ip:%llx Op:%llx W:%llx , %s\n", (ULL) Ip, (ULL) op, (ULL) W, compiling ? "compiling" : "");
+      U here = Get(HerePtr);
+      fprintf(stderr, " :Terp: Ip:%llx Op:%llx W:%llx; Rs=%llx Ds=%llx; here=%llx %s\n", (ULL) Ip, (ULL) op, (ULL) W,
+              (ULL) Rs, (ULL) Ds, (ULL) here, compiling ? "compiling" : "");
     }
     Ip += S;
 
@@ -423,12 +454,57 @@ void Loop()
         printf("%lld. ", (long long) C(x));
         fflush(stdout);
       }
+      break;
+    case CR:
+      putchar('\n');
+      fflush(stdout);
+      break;
     case DUP:{
         Push(Peek());
       }
       break;
     case DROP:{
-        Pop();
+        Ds += S;
+      }
+      break;
+    case _2DUP:{
+        Push(Peek(1));
+        Push(Peek(1));
+      }
+      break;
+    case _2DROP:{
+        Ds += 2 * S;
+      }
+      break;
+    case SWAP:{
+        U x = Peek();
+        U y = Peek(1);
+        Poke(y, 0);
+        Poke(x, 1);
+      }
+      break;
+    case OVER:{
+        Push(Peek(1));
+      }
+      break;
+    case GT_R:{
+        PushR(Pop());
+      }
+      break;
+    case R_GT:{
+        Push(PopR());
+      }
+      break;
+    case I:{
+        Push(Get(Rs));
+      }
+      break;
+    case J:{
+        Push(Get(Rs + 2 * S));
+      }
+      break;
+    case K:{
+        Push(Get(Rs + 4 * S));
       }
       break;
     case _LIT_:{
@@ -449,7 +525,7 @@ void Loop()
       {
         U compiling = Get(StatePtr);
         if (!compiling)
-          Fatal("cannot use `;` when not compiling", 0);
+          Fatal("cannot use `;` when not compiling");
       }
       Comma(LookupCfa("(exit)"));
       Put(StatePtr, 0);         // Interpreting state.
@@ -459,8 +535,8 @@ void Loop()
       {
         U compiling = Get(StatePtr);
         if (compiling)
-          Fatal("cannot use `:` when already compiling", 0);
-        char *name = NewWordStr();
+          Fatal("cannot use `:` when already compiling");
+        char *name = WordStr();
         CreateWord(name, _ENTER_);
         Put(StatePtr, 1);       // Compiling state.
       }
@@ -527,27 +603,87 @@ void Loop()
       Mem[Pop() + S] ^= HIDDEN_BIT;
       break;
     case KEY:
-      NewKey();
+      Key();
       break;
     case WORD:
-      NewWord();
+      Word();
       break;
-    case DO:
-      Fatal("TODO", op);
+    case HERE:
+      Push(Get(HerePtr));
       break;
-    case _DO:
-      Fatal("TODO", op);
+    case _TICK:{
+        char *word = WordStr();
+        assert(word);
+        U cfa = LookupCfa(word);
+        assert(cfa);
+        Push(cfa);
+        fprintf(stderr, "_TICK: word=`%s` cfa=%d\n", word, cfa);
+      }
       break;
-    case LOOP:
-      Fatal("TODO", op);
+    case _COMMA:
+      Comma(Pop());
+      break;
+    case DO:{
+        U swap = CheckU(LookupCfa("swap"));
+        Comma(swap);
+        U onto_r = CheckU(LookupCfa(">r"));
+        Comma(onto_r);
+        Comma(onto_r);
+        Push(Get(HerePtr));     // Jump back target.
+        Push(0);                // No repair.
+      }
+      break;
+    case _DO:{                 // ?DO
+        U swap = CheckU(LookupCfa("swap"));
+        Comma(swap);
+        U onto_r = CheckU(LookupCfa(">r"));
+        Comma(onto_r);
+        Comma(onto_r);
+        U branch = CheckU(LookupCfa("branch"));
+        Comma(branch);
+        U repair = Get(HerePtr);
+        Comma(0);
+        Push(Get(HerePtr));     // Jump back target is after the `branch`.
+        Push(repair);
+      }
+      break;
+    case _INCR_I_:
+      ++Mem[Rs];
+      break;
+    case _LOOP_:{
+        U count = Mem[Rs];
+        U limit = Mem[Rs + S];
+
+        if (count < limit) {
+          Ip += Get(Ip);        // add offset to Ip.
+        } else {
+          Ip += S;              // skip over offset.
+          Rs += 2 * S;          // pop count & limit from Return stack.
+        }
+      }
+      break;
+    case LOOP:{
+        U repair = Pop();
+        U back = Pop();
+        Comma(CheckU(LookupCfa("(incr_i)")));
+        if (repair) {
+          // Repair ?DO target to jump after (incr_i) and before (loop).
+          Put(repair, Get(HerePtr) - repair);
+        }
+        Comma(CheckU(LookupCfa("(loop)")));
+        Comma(back - Get(HerePtr));
+      }
+      break;
+    case LEAVE:
+      FatalI("TODO", op);
       break;
     case UNLOOP:
-      Fatal("TODO", op);
+      FatalI("TODO", op);
       break;
     case IF:{
         U compiling = Get(StatePtr);
         if (!compiling)
-          Fatal("cannot use IF unless compiling", 0);
+          Fatal("cannot use IF unless compiling");
         Comma(LookupCfa("0branch"));
         Push(Get(HerePtr));     // Push position of EEEE to repair.
         Comma(0xEEEE);
@@ -581,12 +717,12 @@ void Loop()
     case NOP:
       break;
     default:{
-        Fatal("Bad op", op);
+        FatalI("Bad op", op);
       }
       break;
-    }
-  }
-}
+    }                           // switch (op)
+  }                             // while(true)
+}                               // void Loop()
 
 void ExecuteCfa(U cfa)
 {
@@ -669,8 +805,18 @@ void Init()
 
   CreateWord("+", _PLUS);
   CreateWord(".", _DOT);
+  CreateWord("cr", CR);
   CreateWord("dup", DUP);
   CreateWord("drop", DROP);
+  CreateWord("2dup", _2DUP);
+  CreateWord("2drop", _2DROP);
+  CreateWord("swap", SWAP);
+  CreateWord("over", OVER);
+  CreateWord(">r", GT_R);
+  CreateWord("r>", R_GT);
+  CreateWord("i", I);
+  CreateWord("j", J);
+  CreateWord("k", K);
   CreateWord("(lit)", _LIT_);
   CreateWord("(enter)", _ENTER_);
   CreateWord("(exit)", _EXIT_);
@@ -689,18 +835,26 @@ void Init()
   CreateWord(">", _GT);
   CreateWord(">=", _GE);
   CreateWord("dumpmem", DUMPMEM);
+  CreateWord("key", KEY);
+  CreateWord("word", WORD);
+  CreateWord("here", HERE);
   CreateWord("words", WORDS);
+  CreateWord("'", _TICK, IMMEDIATE_BIT);
   CreateWord("r0", R0);
   CreateWord("s0", S0);
   CreateWord("must", MUST);
   CreateWord("immediate", IMMEDIATE, IMMEDIATE_BIT);
+  CreateWord(",", _COMMA);
   CreateWord("hidden", HIDDEN);
   CreateWord("branch", BRANCH);
   CreateWord("0branch", BRANCH0);
-  CreateWord("do", DO);
-  CreateWord("?do", _DO);
-  CreateWord("loop", LOOP);
-  CreateWord("unloop", UNLOOP);
+  CreateWord("do", DO, IMMEDIATE_BIT);
+  CreateWord("?do", _DO, IMMEDIATE_BIT);
+  CreateWord("(incr_i)", _INCR_I_);
+  CreateWord("(loop)", _LOOP_);
+  CreateWord("loop", LOOP, IMMEDIATE_BIT);
+  CreateWord("leave", LEAVE, IMMEDIATE_BIT);
+  CreateWord("unloop", UNLOOP, IMMEDIATE_BIT);
   CreateWord("if", IF, IMMEDIATE_BIT);
   CreateWord("else", ELSE, IMMEDIATE_BIT);
   CreateWord("then", THEN, IMMEDIATE_BIT);
@@ -709,7 +863,7 @@ void Init()
 
 void Interpret1()
 {
-  const char *word = NewWordStr();
+  const char *word = WordStr();
   B flags = 0;
   U cfa = LookupCfa(word, &flags);
   U compiling = Get(StatePtr);
@@ -784,7 +938,7 @@ void Main(int argc, const char *argv[])
       text = &argv[0][2];
       break;
     default:
-      Fatal("Bad flag", argv[0][1]);
+      FatalS("Bad flag", argv[0]);
     }
     ++argv, --argc;
   }

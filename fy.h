@@ -53,13 +53,23 @@ extern U W;                     // W register
 extern const char *Argv0;
 
 typedef enum {
-  _END,                         // 0
+  _END,
   _PLUS,
   _DOT,
-  DUP,                          // 3
+  CR,
+  DUP,
   DROP,
+  _2DUP,
+  _2DROP,
+  SWAP,
+  OVER,
+  GT_R,
+  R_GT,
+  I,
+  J,
+  K,
   _LIT_,
-  _ENTER_,                      // 6
+  _ENTER_,
   _EXIT_,
   _SEMICOLON,
   _COLON,
@@ -83,9 +93,15 @@ typedef enum {
   HIDDEN,
   KEY,
   WORD,
+  HERE,
+  _TICK,
+  _COMMA,
   DO,
   _DO,
+  _LOOP_,
+  _INCR_I_,
   LOOP,
+  LEAVE,
   UNLOOP,
   IF,
   ELSE,
@@ -99,21 +115,43 @@ constexpr B LEN_MASK = 0x1F;    // max length is 31.
 constexpr B HIDDEN_BIT = 0x20;
 constexpr B IMMEDIATE_BIT = 0x80;
 
-inline bool streq(const char *p, const char *q)
+inline bool strcaseeq(const char *p, const char *q)
 {
-  D(stderr, "  (streq <%s> <%s>) ", p, q);
-  return 0 == strcmp(p, q);
+  D(stderr, "  (strcaseeq <%s> <%s>) ", p, q);
+  return 0 == strcasecmp(p, q);
 };
+
+
+extern void Fatal(const char *msg);
+extern void FatalU(const char *msg, int x);
+extern void FatalI(const char *msg, int x);
+extern void FatalS(const char *msg, const char *s);
 
   // Get & Put.
 
 inline U Get(U i)
 {
+#ifndef OPT
+  if ((i & (S - 1)) != 0) {
+    FatalU("Get: bad alignment", i);
+  }
+  if ((unsigned long long) i >= (unsigned long long) MemLen) {
+    FatalU("Get: too big", i);
+  }
+#endif
   return *(U *) (Mem + i);
 };
 
 inline void Put(U i, U x)
 {
+#ifndef OPT
+  if ((i & (S - 1)) != 0) {
+    FatalU("Get: bad alignment", i);
+  }
+  if ((unsigned long long) i >= (unsigned long long) MemLen) {
+    FatalU("Get: too big", i);
+  }
+#endif
   *(U *) (Mem + i) = x;
 };
 
