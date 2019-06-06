@@ -459,31 +459,62 @@ void Loop()
       putchar('\n');
       fflush(stdout);
       break;
-    case DUP:{
-        Push(Peek());
-      }
+    case DUP:
+      // dup   ( a -- a a )
+      Push(Peek());
       break;
-    case DROP:{
-        Ds += S;
-      }
+    case DROP:
+      // drop  ( a -- )
+      Ds += S;
       break;
-    case _2DUP:{
-        Push(Peek(1));
-        Push(Peek(1));
-      }
+    case _2DUP:
+      Push(Peek(1));
+      Push(Peek(1));
       break;
-    case _2DROP:{
-        Ds += 2 * S;
-      }
+    case _2DROP:
+      Ds += 2 * S;
       break;
     case SWAP:{
+        // swap  ( a b -- b a )
         U x = Peek();
         U y = Peek(1);
         Poke(y, 0);
         Poke(x, 1);
       }
       break;
-    case OVER:{
+      // ?dup  ( a -- a a | 0 ) dup if dup then ;
+    case OVER:
+      // over  ( a b -- a b a )
+      Push(Peek(1));
+      break;
+    case ROT:{
+        // rot   ( a b c -- b c a )
+        U tmp = Peek(2);
+        Poke(Peek(1), 2);
+        Poke(Peek(0), 1);
+        Poke(tmp, 0);
+      }
+      break;
+    case _ROT:{
+        // -rot  ( a b c -- c a b ) rot rot ;
+        U tmp = Peek(0);
+        Poke(Peek(1), 0);
+        Poke(Peek(2), 1);
+        Poke(tmp, 3);
+      }
+      break;
+    case NIP:
+      // nip   ( a b -- b ) swap drop ;
+      Poke(Pop());
+      break;
+    case TUCK:{
+        // tuck  ( a b -- b a b ) swap over ;
+        // first swap.
+        U x = Peek();
+        U y = Peek(1);
+        Poke(y, 0);
+        Poke(x, 1);
+        // then over.
         Push(Peek(1));
       }
       break;
@@ -493,6 +524,10 @@ void Loop()
       break;
     case R_GT:{
         Push(PopR());
+      }
+      break;
+    case R_AT:{
+        Push(Get(Rs));
       }
       break;
     case I:{
@@ -624,6 +659,7 @@ void Loop()
       Comma(Pop());
       break;
     case DO:{
+        Comma(CheckU(LookupCfa("nop_do")));
         U swap = CheckU(LookupCfa("swap"));
         Comma(swap);
         U onto_r = CheckU(LookupCfa(">r"));
@@ -631,9 +667,11 @@ void Loop()
         Comma(onto_r);
         Push(Get(HerePtr));     // Jump back target.
         Push(0);                // No repair.
+        Push(0);                // No leave repair.
       }
       break;
     case _DO:{                 // ?DO
+        Comma(CheckU(LookupCfa("nop_do")));
         U swap = CheckU(LookupCfa("swap"));
         Comma(swap);
         U onto_r = CheckU(LookupCfa(">r"));
@@ -645,8 +683,10 @@ void Loop()
         Comma(0);
         Push(Get(HerePtr));     // Jump back target is after the `branch`.
         Push(repair);
+        Push(0);                // No leave repair.
       }
       break;
+
     case _INCR_I_:
       ++Mem[Rs];
       break;
@@ -663,8 +703,10 @@ void Loop()
       }
       break;
     case LOOP:{
+        U leave = Pop();
         U repair = Pop();
         U back = Pop();
+        Comma(CheckU(LookupCfa("nop_loop")));
         Comma(CheckU(LookupCfa("(incr_i)")));
         if (repair) {
           // Repair ?DO target to jump after (incr_i) and before (loop).
@@ -672,18 +714,77 @@ void Loop()
         }
         Comma(CheckU(LookupCfa("(loop)")));
         Comma(back - Get(HerePtr));
+        if (leave) {
+          // Repair leave target.
+          Put(leave, Get(HerePtr) - leave);
+        }
       }
       break;
-    case LEAVE:
-      FatalI("TODO", op);
+
+
+    case _PLUS_INCR_I_:
+      Mem[Rs] += Pop();
+      break;
+    case PLUS_LOOP:{
+        U leave = Pop();
+        U repair = Pop();
+        U back = Pop();
+        Comma(CheckU(LookupCfa("nop_loop")));
+        Comma(CheckU(LookupCfa("(+incr_i)")));
+        if (repair) {
+          // Repair ?DO target to jump after (incr_i) and before (loop).
+          Put(repair, Get(HerePtr) - repair);
+        }
+        Comma(CheckU(LookupCfa("(loop)")));
+        Comma(back - Get(HerePtr));
+        if (leave) {
+          // Repair leave target.
+          Put(leave, Get(HerePtr) - leave);
+        }
+      }
+      break;
+
+    case LEAVE:{
+        // TODO -- current requires exactly 1 IF...THEN around it.
+        // Replace 
+        U if_then = Pop();
+        U old_leave = Pop();
+        if (old_leave) {
+          // Repair leave target.
+          Put(old_leave, Get(HerePtr) - old_leave);
+        }
+        Comma(CheckU(LookupCfa("nop_leave")));
+        Comma(CheckU(LookupCfa("r>"))); // Drop count from return stack.
+        Comma(CheckU(LookupCfa("drop")));
+        Comma(CheckU(LookupCfa("r>"))); // Drop limit from return stack.
+        Comma(CheckU(LookupCfa("drop")));
+        Comma(CheckU(LookupCfa("branch")));
+        U new_leave = Get(HerePtr);
+        Comma(0);               // Needs repairing with leave.
+
+        U old_repair = Pop();
+        if (old_repair) {
+          // Repair the old branch to chain the following branch.
+          Put(old_repair, Get(HerePtr) - old_repair);
+          Comma(CheckU(LookupCfa("branch")));
+          U new_repair = Get(HerePtr);
+          Comma(0);             // Needs repairing.
+          Push(new_repair);
+        } else {
+          Push(0);              // New repair is also empty.
+        }
+        Push(new_leave);
+        Push(if_then);
+      }
       break;
     case UNLOOP:
-      FatalI("TODO", op);
+      Rs += 2 * S;              // Pop count & limit off of the return stack.
       break;
     case IF:{
         U compiling = Get(StatePtr);
         if (!compiling)
           Fatal("cannot use IF unless compiling");
+        Comma(LookupCfa("nop_if"));
         Comma(LookupCfa("0branch"));
         Push(Get(HerePtr));     // Push position of EEEE to repair.
         Comma(0xEEEE);
@@ -691,6 +792,7 @@ void Loop()
       break;
     case ELSE:{
         U repair = Pop();
+        Comma(LookupCfa("nop_else"));
         Comma(LookupCfa("branch"));
         Push(Get(HerePtr));     // Push position of EEEE to repair.
         Comma(0xEEEE);
@@ -701,7 +803,7 @@ void Loop()
     case THEN:{
         U repair = Pop();
         Put(repair, Get(HerePtr) - repair);
-        Comma(LookupCfa("nop"));
+        Comma(LookupCfa("nop_then"));
       }
       break;
     case BRANCH:
@@ -715,6 +817,12 @@ void Loop()
       }
       break;
     case NOP:
+    case NOP_DO:
+    case NOP_LOOP:
+    case NOP_LEAVE:
+    case NOP_IF:
+    case NOP_THEN:
+    case NOP_ELSE:
       break;
     default:{
         FatalI("Bad op", op);
@@ -814,6 +922,7 @@ void Init()
   CreateWord("over", OVER);
   CreateWord(">r", GT_R);
   CreateWord("r>", R_GT);
+  CreateWord("r@", R_AT);
   CreateWord("i", I);
   CreateWord("j", J);
   CreateWord("k", K);
@@ -853,12 +962,20 @@ void Init()
   CreateWord("(incr_i)", _INCR_I_);
   CreateWord("(loop)", _LOOP_);
   CreateWord("loop", LOOP, IMMEDIATE_BIT);
+  CreateWord("(+incr_i)", _PLUS_INCR_I_);
+  CreateWord("+loop", PLUS_LOOP, IMMEDIATE_BIT);
   CreateWord("leave", LEAVE, IMMEDIATE_BIT);
   CreateWord("unloop", UNLOOP, IMMEDIATE_BIT);
   CreateWord("if", IF, IMMEDIATE_BIT);
   CreateWord("else", ELSE, IMMEDIATE_BIT);
   CreateWord("then", THEN, IMMEDIATE_BIT);
   CreateWord("nop", NOP);
+  CreateWord("nop_do", NOP_DO);
+  CreateWord("nop_loop", NOP_LOOP);
+  CreateWord("nop_leave", NOP_LEAVE);
+  CreateWord("nop_if", NOP_IF);
+  CreateWord("nop_then", NOP_THEN);
+  CreateWord("nop_else", NOP_ELSE);
 }
 
 void Interpret1()
