@@ -521,6 +521,23 @@ void Loop()
         Poke(x, 1);
       }
       break;
+    case X_HUH_DUP:{
+        // ?dup:  duplicate top of stack if nonzero.
+        if (Peek())
+          Push(Peek());
+      }
+      break;
+    case X_2SWAP:{
+        U x = Peek();
+        U y = Peek(2);
+        Poke(y, 0);
+        Poke(x, 2);
+        x = Peek(1);
+        y = Peek(3);
+        Poke(y, 1);
+        Poke(x, 3);
+      }
+      break;
       // ?dup  ( a -- a a | 0 ) dup if dup then ;
     case XOVER:
       // over  ( a b -- a b a )
@@ -605,7 +622,6 @@ void Loop()
       Put(StatePtr, 0);         // Interpreting state.
       break;
     case X_COLON:
-      // ColonDefinition();
       {
         U compiling = Get(StatePtr);
         if (compiling)
@@ -617,6 +633,18 @@ void Loop()
       break;
     case XALIGN:
       Poke(Aligned(Peek()));
+      break;
+    case X_1PLUS:
+      Poke(Peek() + 1);
+      break;
+    case X_4PLUS:
+      Poke(Peek() + 4);
+      break;
+    case X_1MINUS:
+      Poke(Peek() - 1);
+      break;
+    case X_4MINUS:
+      Poke(Peek() - 4);
       break;
     case X_PLUS:
       fprintf(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
@@ -984,6 +1012,10 @@ void Init()
   Put(Rs0, 0xEEEE);             // Debugging mark.
   Put(Ds0, 0xEEEE);             // Debugging mark.
 
+  CreateWord("1+", X_1PLUS);
+  CreateWord("1-", X_1MINUS);
+  CreateWord("4+", X_4PLUS);
+  CreateWord("4-", X_4MINUS);
   CreateWord("+", X_PLUS);
   CreateWord(".", X_DOT);
   CreateWord("cr", XCR);
@@ -991,7 +1023,9 @@ void Init()
   CreateWord("drop", XDROP);
   CreateWord("2dup", X_2DUP);
   CreateWord("2drop", X_2DROP);
+  CreateWord("2swap", X_2SWAP);
   CreateWord("swap", XSWAP);
+  CreateWord("?dup", X_HUH_DUP);
   CreateWord("over", XOVER);
   CreateWord("rot", XROT);
   CreateWord("-rot", X_ROT);
@@ -1015,6 +1049,7 @@ void Init()
   CreateWord("mod", XMOD);
   CreateWord("=", X_EQ);
   CreateWord("==", X_EQ);
+  CreateWord("<>", X_NE);
   CreateWord("!=", X_NE);
   CreateWord("<", X_LT);
   CreateWord("<=", X_LE);

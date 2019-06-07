@@ -58,7 +58,6 @@ extern const char *Argv0;
 
 typedef enum {
   X_END,
-  X_PLUS,
   X_DOT,
   XCR,
   XDUP,
@@ -66,6 +65,8 @@ typedef enum {
   X_2DUP,
   X_2DROP,
   XSWAP,
+  X_2SWAP,
+  X_HUH_DUP,
   XOVER,
   XROT,
   X_ROT,
@@ -83,6 +84,11 @@ typedef enum {
   X_SEMICOLON,
   X_COLON,
   XALIGN,
+  X_1PLUS,
+  X_1MINUS,
+  X_4PLUS,
+  X_4MINUS,
+  X_PLUS,
   X_MINUS,
   X_TIMES,
   X_DIVIDE,
