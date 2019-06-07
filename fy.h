@@ -176,6 +176,13 @@ inline U Pop()
   return Get(p);
 }
 
+inline C CPop()
+{
+  U p = Ds;
+  Ds += S;
+  return (C) Get(p);
+}
+
 inline void Push(U x, int i = 0)
 {
   Ds -= S;
@@ -192,10 +199,21 @@ inline U Peek(int i = 0)
   return Get(Ds + (i * S));
 }
 
+inline C CPeek(int i = 0)
+{
+  return (C) Get(Ds + (i * S));
+}
+
 inline void DropPoke(U x)
 {
   Ds += S;
   Put(Ds, x);
+}
+
+inline void DropPokeC(C x)
+{
+  Ds += S;
+  Put(Ds, (U) x);
 }
 
 inline U PopR()
@@ -244,4 +262,8 @@ private:
   FILE *current_;
   bool isatty_;
   bool next_ok_;
+#ifdef LINENOISE
+  char *ln_line_;
+  char *ln_next_;
+#endif
 };

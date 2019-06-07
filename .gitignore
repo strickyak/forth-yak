@@ -1,5 +1,8 @@
-a.out
 RCS
 *,v
 *.swp
 *~
+*.o
+.fy.history.txt
+fy
+a.out

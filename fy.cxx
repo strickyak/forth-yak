@@ -1,4 +1,7 @@
+#define LINENOISE 1
+
 #include "fy.h"
+#include "vendor/linenoise/linenoise.h"
 
 #include <unistd.h>
 
@@ -26,21 +29,23 @@ U LatestPtr;                    // points to Latest variable
 U StatePtr;                     // points to State variable
 
 int Debug;
+int MustOk;
 
 map < U, string > link_map, cfa_map, dfa_map;   // Just for debugging.
 
 InputKey input_key;
 
-void SmartPrintNum(U x, FILE * fd = stdout)
+void SmartPrintNum(U u, FILE * fd = stdout)
 {
-  if (link_map.find(x) != link_map.end()) {
+  C x = (C) u;
+  if (link_map.find(u) != link_map.end()) {
     fprintf(fd, "  L{%s}", link_map[x].c_str());
-  } else if (cfa_map.find(x) != cfa_map.end()) {
+  } else if (cfa_map.find(u) != cfa_map.end()) {
     fprintf(fd, "  U{%s}", cfa_map[x].c_str());
-  } else if (dfa_map.find(x) != dfa_map.end()) {
+  } else if (dfa_map.find(u) != dfa_map.end()) {
     fprintf(fd, "  D{%s}", dfa_map[x].c_str());
-  } else if (-MemLen <= x && x <= MemLen) {
-    fprintf(fd, "  %llx", (ULL) x);
+  } else if (-2 * MemLen <= x && x <= 2 * MemLen) {
+    fprintf(fd, "  %llx", (ULL) u);
   } else {
     fprintf(fd, "  ---");
   }
@@ -190,9 +195,16 @@ void InputKey::Advance()
   if (filec_ == 0) {
     if (add_stdin_) {
       current_ = stdin;
+#ifdef LINENOISE
+      ln_line_ = nullptr;
+      ln_next_ = nullptr;
+      linenoiseHistoryLoad(".fy.history.txt");
+      linenoiseHistorySetMaxLen(1000);
+#else
       isatty_ = (isatty(0) == 1);
       fflush(stdout);
       fprintf(stderr, " ok ");
+#endif
     } else {
       current_ = nullptr;
     }
@@ -222,10 +234,41 @@ U InputKey::Key()
       fprintf(stderr, " ok ");
       next_ok_ = false;
     }
-    int ch = fgetc(current_);
+    int ch;
+#ifdef LINENOISE
+    if (current_ != stdin) {
+      ch = fgetc(current_);
+    } else if (ln_next_ && *ln_next_) {
+      ch = *ln_next_++;
+    } else if (ln_next_) {
+      ln_next_ = nullptr;
+      return '\n';
+    } else {
+      if (ln_line_)
+        linenoiseFree(ln_line_);
+      ln_line_ = linenoise(" OK ");
+      if (ln_line_) {
+        linenoiseHistoryAdd(ln_line_);
+        linenoiseHistorySave(".fy.history.txt");
+        ln_next_ = ln_line_;
+        if (ln_next_ && *ln_next_) {
+          ch = *ln_next_++;
+        } else if (ln_next_) {
+          ln_next_ = nullptr;
+          return '\n';
+        } else {
+          return Key();         // recurse.
+        }
+      } else {
+        ch = EOF;
+      }
+    }
+#else
+    ch = fgetc(current_);
     if (ch == '\n' && isatty_) {
       next_ok_ = true;
     }
+#endif
     if (ch != EOF) {
       // fprintf(stderr, "<%c=%d>", ch, ch);
       return (U) ch;
@@ -446,9 +489,6 @@ void Loop()
     case _END:
       return;
       break;
-    case _PLUS:
-      DropPoke(Peek(1) + Peek());       // Unsigned should be same as signed 2's complement.
-      break;
     case _DOT:{
         U x = Pop();
         printf("%lld. ", (long long) C(x));
@@ -500,7 +540,7 @@ void Loop()
         U tmp = Peek(0);
         Poke(Peek(1), 0);
         Poke(Peek(2), 1);
-        Poke(tmp, 3);
+        Poke(tmp, 2);
       }
       break;
     case NIP:
@@ -579,38 +619,49 @@ void Loop()
     case ALIGN:
       Poke(Aligned(Peek()));
       break;
+    case _PLUS:
+      fprintf(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
+      DropPokeC((C) Peek(1) + (C) Peek());
+      break;
     case _MINUS:
-      DropPoke(Peek(1) - Peek());       // Unsigned should be same as signed 2's complement.
+      fprintf(stderr, "{MINUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) - CPeek());
+      DropPokeC((C) Peek(1) - (C) Peek());
       break;
     case _TIMES:
-      fprintf(stderr, "TIMES: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) * (C) Peek());
-      DropPoke(U((C) Peek(1) * (C) Peek()));
+      fprintf(stderr, "{TIMES: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) * CPeek());
+      DropPokeC(CPeek(1) * CPeek());
       break;
     case _DIVIDE:
-      fprintf(stderr, "DIV: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) / (C) Peek());
-      DropPoke(U((C) Peek(1) / (C) Peek()));
+      fprintf(stderr, "{DIV: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) / CPeek());
+      DropPokeC(CPeek(1) / CPeek());
       break;
     case MOD:
-      fprintf(stderr, "MOD: %d %d %d", (C) Peek(1), (C) Peek(), (C) Peek(1) % (C) Peek());
-      DropPoke(U((C) Peek(1) % (C) Peek()));
+      fprintf(stderr, "{MOD: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) % CPeek());
+      DropPokeC(CPeek(1) % CPeek());
       break;
     case _EQ:
-      DropPoke(Peek(1) == Peek());
+      fprintf(stderr, "{EQ: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) == CPeek());
+      DropPokeC(CPeek(1) == CPeek());
       break;
     case _NE:
-      DropPoke(Peek(1) != Peek());
+      fprintf(stderr, "{NE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) != CPeek());
+      DropPokeC(CPeek(1) != CPeek());
       break;
     case _LT:
-      DropPoke(Peek(1) < Peek());
+      fprintf(stderr, "{LT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) < CPeek());
+      DropPokeC(CPeek(1) < CPeek());
       break;
     case _LE:
-      DropPoke(Peek(1) <= Peek());
+      fprintf(stderr, "{LE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) <= CPeek());
+      DropPokeC(CPeek(1) <= CPeek());
       break;
     case _GT:
-      DropPoke(Peek(1) > Peek());
+      fprintf(stderr, "{GT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) > CPeek());
+      DropPokeC(CPeek(1) > CPeek());
       break;
     case _GE:
-      DropPoke(Peek(1) >= Peek());
+      fprintf(stderr, "{GE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) >= CPeek());
+      DropPokeC(CPeek(1) >= CPeek());
       break;
     case DUMPMEM:
       DumpMem(true);
@@ -629,6 +680,9 @@ void Loop()
         DumpMem(true);
         fprintf(stderr, " *** MUST failed\n");
         assert(0);
+      } else {
+        ++MustOk;
+        fprintf(stderr, "   [MUST okay #%d]\n", MustOk);
       }
       break;
     case IMMEDIATE:
@@ -659,6 +713,10 @@ void Loop()
       Comma(Pop());
       break;
     case DO:{
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use DO unless compiling");
+
         Comma(CheckU(LookupCfa("nop_do")));
         U swap = CheckU(LookupCfa("swap"));
         Comma(swap);
@@ -671,6 +729,10 @@ void Loop()
       }
       break;
     case _DO:{                 // ?DO
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use ?DO unless compiling");
+
         Comma(CheckU(LookupCfa("nop_do")));
         U swap = CheckU(LookupCfa("swap"));
         Comma(swap);
@@ -920,6 +982,10 @@ void Init()
   CreateWord("2drop", _2DROP);
   CreateWord("swap", SWAP);
   CreateWord("over", OVER);
+  CreateWord("rot", ROT);
+  CreateWord("-rot", _ROT);
+  CreateWord("nip", NIP);
+  CreateWord("tuck", TUCK);
   CreateWord(">r", GT_R);
   CreateWord("r>", R_GT);
   CreateWord("r@", R_AT);
