@@ -8,7 +8,7 @@ linenoise.o: vendor/linenoise/linenoise.h vendor/linenoise/linenoise.c
 
 i:
 	ci -l -m/dev/null -t/dev/null -q *.h *.cxx *.fy Makefile
-	indent forth-yak.h forth-yak.cxx
+	indent fy.h fy.cxx
 	ci -l -m/dev/null -t/dev/null -q *.h *.cxx *.fy Makefile
 
 test: fy

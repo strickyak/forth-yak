@@ -13,6 +13,10 @@ extern int Debug;
 #define CELLSIZE 4
 #endif
 
+#ifndef MEMLEN
+#define MEMLEN 0x1000
+#endif
+
 #if CELLSIZE == 2
 typedef int16_t C;              // Cell
 typedef uint16_t U;             // Unsigned cell
@@ -33,8 +37,8 @@ typedef unsigned long long ULL;
 constexpr size_t S = sizeof(C);
 constexpr size_t LINELEN = 500;
 
-extern char *Mem;
-extern int MemLen;
+constexpr int MemLen = MEMLEN;
+extern char Mem[MemLen];
 
 typedef union {
   U c;

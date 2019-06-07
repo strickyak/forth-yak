@@ -14,8 +14,7 @@ using std::string;
 const char *Argv0;
 bool QuitAfterSlurping;
 
-char *Mem;
-int MemLen;
+char Mem[MEMLEN];
 
 U Ds;                           // data stack ptr
 U Ds0;                          // data stack ptr base
@@ -954,8 +953,7 @@ U Allot(int n)
 
 void Init()
 {
-  Mem = new char[MemLen];
-  memset(Mem, 0, MemLen);
+  // memset(Mem, 0, MemLen);
 
   U ptr = LINELEN;
   HerePtr = ptr;
@@ -1097,7 +1095,7 @@ void PrintIntSizes()
 
 void Main(int argc, const char *argv[])
 {
-  MemLen = 0x10000;             // Default: 64 kib RAM.
+  // MemLen = 0x10000;             // Default: 64 kib RAM.
 
   Argv0 = argv[0];
   ++argv, --argc;
@@ -1105,9 +1103,6 @@ void Main(int argc, const char *argv[])
   bool interactive = false;
   while (argc > 0 && argv[0][0] == '-') {
     switch (argv[0][1]) {
-    case 'm':
-      MemLen = atoi(&argv[0][2]);
-      break;
     case 'd':
       Debug = atoi(&argv[0][2]);
       break;
