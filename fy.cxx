@@ -433,7 +433,7 @@ void ColonDefinition()
   }
 
   D(stderr, "COLON name <%s>\n", name);
-  CreateWord(name, _ENTER_);
+  CreateWord(name, X_ENTER_);
   Put(StatePtr, 1);             // Compiling state.
   while (1) {
     char *word = WordStr();
@@ -485,35 +485,35 @@ void Loop()
     Ip += S;
 
     switch (op) {
-    case _END:
+    case X_END:
       return;
       break;
-    case _DOT:{
+    case X_DOT:{
         U x = Pop();
         printf("%lld. ", (long long) C(x));
         fflush(stdout);
       }
       break;
-    case CR:
+    case XCR:
       putchar('\n');
       fflush(stdout);
       break;
-    case DUP:
+    case XDUP:
       // dup   ( a -- a a )
       Push(Peek());
       break;
-    case DROP:
+    case XDROP:
       // drop  ( a -- )
       Ds += S;
       break;
-    case _2DUP:
+    case X_2DUP:
       Push(Peek(1));
       Push(Peek(1));
       break;
-    case _2DROP:
+    case X_2DROP:
       Ds += 2 * S;
       break;
-    case SWAP:{
+    case XSWAP:{
         // swap  ( a b -- b a )
         U x = Peek();
         U y = Peek(1);
@@ -522,11 +522,11 @@ void Loop()
       }
       break;
       // ?dup  ( a -- a a | 0 ) dup if dup then ;
-    case OVER:
+    case XOVER:
       // over  ( a b -- a b a )
       Push(Peek(1));
       break;
-    case ROT:{
+    case XROT:{
         // rot   ( a b c -- b c a )
         U tmp = Peek(2);
         Poke(Peek(1), 2);
@@ -534,7 +534,7 @@ void Loop()
         Poke(tmp, 0);
       }
       break;
-    case _ROT:{
+    case X_ROT:{
         // -rot  ( a b c -- c a b ) rot rot ;
         U tmp = Peek(0);
         Poke(Peek(1), 0);
@@ -542,11 +542,11 @@ void Loop()
         Poke(tmp, 2);
       }
       break;
-    case NIP:
+    case XNIP:
       // nip   ( a b -- b ) swap drop ;
       Poke(Pop());
       break;
-    case TUCK:{
+    case XTUCK:{
         // tuck  ( a b -- b a b ) swap over ;
         // first swap.
         U x = Peek();
@@ -557,45 +557,45 @@ void Loop()
         Push(Peek(1));
       }
       break;
-    case GT_R:{
+    case XGT_R:{
         PushR(Pop());
       }
       break;
-    case R_GT:{
+    case XR_GT:{
         Push(PopR());
       }
       break;
-    case R_AT:{
+    case XR_AT:{
         Push(Get(Rs));
       }
       break;
-    case I:{
+    case XI:{
         Push(Get(Rs));
       }
       break;
-    case J:{
+    case XJ:{
         Push(Get(Rs + 2 * S));
       }
       break;
-    case K:{
+    case XK:{
         Push(Get(Rs + 4 * S));
       }
       break;
-    case _LIT_:{
+    case X_LIT_:{
         Push(Get(Ip));
         Ip += S;
       }
       break;
-    case _ENTER_:{
+    case X_ENTER_:{
         PushR(Ip);
         Ip = W;
       }
       break;
-    case _EXIT_:{
+    case X_EXIT_:{
         Ip = PopR();
       }
       break;
-    case _SEMICOLON:
+    case X_SEMICOLON:
       {
         U compiling = Get(StatePtr);
         if (!compiling)
@@ -604,77 +604,77 @@ void Loop()
       Comma(LookupCfa("(exit)"));
       Put(StatePtr, 0);         // Interpreting state.
       break;
-    case _COLON:
+    case X_COLON:
       // ColonDefinition();
       {
         U compiling = Get(StatePtr);
         if (compiling)
           Fatal("cannot use `:` when already compiling");
         char *name = WordStr();
-        CreateWord(name, _ENTER_);
+        CreateWord(name, X_ENTER_);
         Put(StatePtr, 1);       // Compiling state.
       }
       break;
-    case ALIGN:
+    case XALIGN:
       Poke(Aligned(Peek()));
       break;
-    case _PLUS:
+    case X_PLUS:
       fprintf(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
       DropPokeC((C) Peek(1) + (C) Peek());
       break;
-    case _MINUS:
+    case X_MINUS:
       fprintf(stderr, "{MINUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) - CPeek());
       DropPokeC((C) Peek(1) - (C) Peek());
       break;
-    case _TIMES:
+    case X_TIMES:
       fprintf(stderr, "{TIMES: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) * CPeek());
       DropPokeC(CPeek(1) * CPeek());
       break;
-    case _DIVIDE:
+    case X_DIVIDE:
       fprintf(stderr, "{DIV: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) / CPeek());
       DropPokeC(CPeek(1) / CPeek());
       break;
-    case MOD:
+    case XMOD:
       fprintf(stderr, "{MOD: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) % CPeek());
       DropPokeC(CPeek(1) % CPeek());
       break;
-    case _EQ:
+    case X_EQ:
       fprintf(stderr, "{EQ: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) == CPeek());
       DropPokeC(CPeek(1) == CPeek());
       break;
-    case _NE:
+    case X_NE:
       fprintf(stderr, "{NE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) != CPeek());
       DropPokeC(CPeek(1) != CPeek());
       break;
-    case _LT:
+    case X_LT:
       fprintf(stderr, "{LT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) < CPeek());
       DropPokeC(CPeek(1) < CPeek());
       break;
-    case _LE:
+    case X_LE:
       fprintf(stderr, "{LE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) <= CPeek());
       DropPokeC(CPeek(1) <= CPeek());
       break;
-    case _GT:
+    case X_GT:
       fprintf(stderr, "{GT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) > CPeek());
       DropPokeC(CPeek(1) > CPeek());
       break;
-    case _GE:
+    case X_GE:
       fprintf(stderr, "{GE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) >= CPeek());
       DropPokeC(CPeek(1) >= CPeek());
       break;
-    case DUMPMEM:
+    case XDUMPMEM:
       DumpMem(true);
       break;
-    case WORDS:
+    case XWORDS:
       Words();
       break;
-    case R0:
+    case XR0:
       Push(Rs0);
       break;
-    case S0:
+    case XS0:
       Push(Ds0);
       break;
-    case MUST:
+    case XMUST:
       if (Pop() == 0) {
         DumpMem(true);
         fprintf(stderr, " *** MUST failed\n");
@@ -684,22 +684,22 @@ void Loop()
         fprintf(stderr, "   [MUST okay #%d]\n", MustOk);
       }
       break;
-    case IMMEDIATE:
+    case XIMMEDIATE:
       Mem[Get(LatestPtr) + S] ^= IMMEDIATE_BIT;
       break;
-    case HIDDEN:
+    case XHIDDEN:
       Mem[Pop() + S] ^= HIDDEN_BIT;
       break;
-    case KEY:
+    case XKEY:
       Key();
       break;
-    case WORD:
+    case XWORD:
       Word();
       break;
-    case HERE:
+    case XHERE:
       Push(Get(HerePtr));
       break;
-    case _TICK:{
+    case X_TICK:{
         char *word = WordStr();
         assert(word);
         U cfa = LookupCfa(word);
@@ -708,10 +708,10 @@ void Loop()
         fprintf(stderr, "_TICK: word=`%s` cfa=%d\n", word, cfa);
       }
       break;
-    case _COMMA:
+    case X_COMMA:
       Comma(Pop());
       break;
-    case DO:{
+    case XDO:{
         U compiling = Get(StatePtr);
         if (!compiling)
           Fatal("cannot use DO unless compiling");
@@ -727,7 +727,7 @@ void Loop()
         Push(0);                // No leave repair.
       }
       break;
-    case _DO:{                 // ?DO
+    case X_DO:{                // ?DO
         U compiling = Get(StatePtr);
         if (!compiling)
           Fatal("cannot use ?DO unless compiling");
@@ -748,10 +748,10 @@ void Loop()
       }
       break;
 
-    case _INCR_I_:
+    case X_INCR_I_:
       ++Mem[Rs];
       break;
-    case _LOOP_:{
+    case X_LOOP_:{
         U count = Mem[Rs];
         U limit = Mem[Rs + S];
 
@@ -763,7 +763,7 @@ void Loop()
         }
       }
       break;
-    case LOOP:{
+    case XLOOP:{
         U leave = Pop();
         U repair = Pop();
         U back = Pop();
@@ -783,10 +783,10 @@ void Loop()
       break;
 
 
-    case _PLUS_INCR_I_:
+    case X_PLUS_INCR_I_:
       Mem[Rs] += Pop();
       break;
-    case PLUS_LOOP:{
+    case XPLUS_LOOP:{
         U leave = Pop();
         U repair = Pop();
         U back = Pop();
@@ -805,7 +805,7 @@ void Loop()
       }
       break;
 
-    case LEAVE:{
+    case XLEAVE:{
         // TODO -- current requires exactly 1 IF...THEN around it.
         // Replace 
         U if_then = Pop();
@@ -838,10 +838,10 @@ void Loop()
         Push(if_then);
       }
       break;
-    case UNLOOP:
+    case XUNLOOP:
       Rs += 2 * S;              // Pop count & limit off of the return stack.
       break;
-    case IF:{
+    case XIF:{
         U compiling = Get(StatePtr);
         if (!compiling)
           Fatal("cannot use IF unless compiling");
@@ -851,7 +851,7 @@ void Loop()
         Comma(0xEEEE);
       }
       break;
-    case ELSE:{
+    case XELSE:{
         U repair = Pop();
         Comma(LookupCfa("nop_else"));
         Comma(LookupCfa("branch"));
@@ -861,29 +861,29 @@ void Loop()
         Comma(LookupCfa("nop"));
       }
       break;
-    case THEN:{
+    case XTHEN:{
         U repair = Pop();
         Put(repair, Get(HerePtr) - repair);
         Comma(LookupCfa("nop_then"));
       }
       break;
-    case BRANCH:
+    case XBRANCH:
       Ip += Get(Ip);            // add offset to Ip.
       break;
-    case BRANCH0:
+    case XBRANCH0:
       if (Pop() == 0) {
         Ip += Get(Ip);          // add offset to Ip.
       } else {
         Ip += S;                // skip over offset.
       }
       break;
-    case NOP:
-    case NOP_DO:
-    case NOP_LOOP:
-    case NOP_LEAVE:
-    case NOP_IF:
-    case NOP_THEN:
-    case NOP_ELSE:
+    case XNOP:
+    case XNOP_DO:
+    case XNOP_LOOP:
+    case XNOP_LEAVE:
+    case XNOP_IF:
+    case XNOP_THEN:
+    case XNOP_ELSE:
       break;
     default:{
         FatalI("Bad op", op);
@@ -971,75 +971,75 @@ void Init()
   Put(Rs0, 0xEEEE);             // Debugging mark.
   Put(Ds0, 0xEEEE);             // Debugging mark.
 
-  CreateWord("+", _PLUS);
-  CreateWord(".", _DOT);
-  CreateWord("cr", CR);
-  CreateWord("dup", DUP);
-  CreateWord("drop", DROP);
-  CreateWord("2dup", _2DUP);
-  CreateWord("2drop", _2DROP);
-  CreateWord("swap", SWAP);
-  CreateWord("over", OVER);
-  CreateWord("rot", ROT);
-  CreateWord("-rot", _ROT);
-  CreateWord("nip", NIP);
-  CreateWord("tuck", TUCK);
-  CreateWord(">r", GT_R);
-  CreateWord("r>", R_GT);
-  CreateWord("r@", R_AT);
-  CreateWord("i", I);
-  CreateWord("j", J);
-  CreateWord("k", K);
-  CreateWord("(lit)", _LIT_);
-  CreateWord("(enter)", _ENTER_);
-  CreateWord("(exit)", _EXIT_);
-  CreateWord(";", _SEMICOLON, IMMEDIATE_BIT);
-  CreateWord(":", _COLON);
-  CreateWord("align", ALIGN);
-  CreateWord("-", _MINUS);
-  CreateWord("*", _TIMES);
-  CreateWord("/", _DIVIDE);
-  CreateWord("mod", MOD);
-  CreateWord("=", _EQ);
-  CreateWord("==", _EQ);
-  CreateWord("!=", _NE);
-  CreateWord("<", _LT);
-  CreateWord("<=", _LE);
-  CreateWord(">", _GT);
-  CreateWord(">=", _GE);
-  CreateWord("dumpmem", DUMPMEM);
-  CreateWord("key", KEY);
-  CreateWord("word", WORD);
-  CreateWord("here", HERE);
-  CreateWord("words", WORDS);
-  CreateWord("'", _TICK, IMMEDIATE_BIT);
-  CreateWord("r0", R0);
-  CreateWord("s0", S0);
-  CreateWord("must", MUST);
-  CreateWord("immediate", IMMEDIATE, IMMEDIATE_BIT);
-  CreateWord(",", _COMMA);
-  CreateWord("hidden", HIDDEN);
-  CreateWord("branch", BRANCH);
-  CreateWord("0branch", BRANCH0);
-  CreateWord("do", DO, IMMEDIATE_BIT);
-  CreateWord("?do", _DO, IMMEDIATE_BIT);
-  CreateWord("(incr_i)", _INCR_I_);
-  CreateWord("(loop)", _LOOP_);
-  CreateWord("loop", LOOP, IMMEDIATE_BIT);
-  CreateWord("(+incr_i)", _PLUS_INCR_I_);
-  CreateWord("+loop", PLUS_LOOP, IMMEDIATE_BIT);
-  CreateWord("leave", LEAVE, IMMEDIATE_BIT);
-  CreateWord("unloop", UNLOOP, IMMEDIATE_BIT);
-  CreateWord("if", IF, IMMEDIATE_BIT);
-  CreateWord("else", ELSE, IMMEDIATE_BIT);
-  CreateWord("then", THEN, IMMEDIATE_BIT);
-  CreateWord("nop", NOP);
-  CreateWord("nop_do", NOP_DO);
-  CreateWord("nop_loop", NOP_LOOP);
-  CreateWord("nop_leave", NOP_LEAVE);
-  CreateWord("nop_if", NOP_IF);
-  CreateWord("nop_then", NOP_THEN);
-  CreateWord("nop_else", NOP_ELSE);
+  CreateWord("+", X_PLUS);
+  CreateWord(".", X_DOT);
+  CreateWord("cr", XCR);
+  CreateWord("dup", XDUP);
+  CreateWord("drop", XDROP);
+  CreateWord("2dup", X_2DUP);
+  CreateWord("2drop", X_2DROP);
+  CreateWord("swap", XSWAP);
+  CreateWord("over", XOVER);
+  CreateWord("rot", XROT);
+  CreateWord("-rot", X_ROT);
+  CreateWord("nip", XNIP);
+  CreateWord("tuck", XTUCK);
+  CreateWord(">r", XGT_R);
+  CreateWord("r>", XR_GT);
+  CreateWord("r@", XR_AT);
+  CreateWord("i", XI);
+  CreateWord("j", XJ);
+  CreateWord("k", XK);
+  CreateWord("(lit)", X_LIT_);
+  CreateWord("(enter)", X_ENTER_);
+  CreateWord("(exit)", X_EXIT_);
+  CreateWord(";", X_SEMICOLON, IMMEDIATE_BIT);
+  CreateWord(":", X_COLON);
+  CreateWord("align", XALIGN);
+  CreateWord("-", X_MINUS);
+  CreateWord("*", X_TIMES);
+  CreateWord("/", X_DIVIDE);
+  CreateWord("mod", XMOD);
+  CreateWord("=", X_EQ);
+  CreateWord("==", X_EQ);
+  CreateWord("!=", X_NE);
+  CreateWord("<", X_LT);
+  CreateWord("<=", X_LE);
+  CreateWord(">", X_GT);
+  CreateWord(">=", X_GE);
+  CreateWord("dumpmem", XDUMPMEM);
+  CreateWord("key", XKEY);
+  CreateWord("word", XWORD);
+  CreateWord("here", XHERE);
+  CreateWord("words", XWORDS);
+  CreateWord("'", X_TICK, IMMEDIATE_BIT);
+  CreateWord("r0", XR0);
+  CreateWord("s0", XS0);
+  CreateWord("must", XMUST);
+  CreateWord("immediate", XIMMEDIATE, IMMEDIATE_BIT);
+  CreateWord(",", X_COMMA);
+  CreateWord("hidden", XHIDDEN);
+  CreateWord("branch", XBRANCH);
+  CreateWord("0branch", XBRANCH0);
+  CreateWord("do", XDO, IMMEDIATE_BIT);
+  CreateWord("?do", X_DO, IMMEDIATE_BIT);
+  CreateWord("(incr_i)", X_INCR_I_);
+  CreateWord("(loop)", X_LOOP_);
+  CreateWord("loop", XLOOP, IMMEDIATE_BIT);
+  CreateWord("(+incr_i)", X_PLUS_INCR_I_);
+  CreateWord("+loop", XPLUS_LOOP, IMMEDIATE_BIT);
+  CreateWord("leave", XLEAVE, IMMEDIATE_BIT);
+  CreateWord("unloop", XUNLOOP, IMMEDIATE_BIT);
+  CreateWord("if", XIF, IMMEDIATE_BIT);
+  CreateWord("else", XELSE, IMMEDIATE_BIT);
+  CreateWord("then", XTHEN, IMMEDIATE_BIT);
+  CreateWord("nop", XNOP);
+  CreateWord("nop_do", XNOP_DO);
+  CreateWord("nop_loop", XNOP_LOOP);
+  CreateWord("nop_leave", XNOP_LEAVE);
+  CreateWord("nop_if", XNOP_IF);
+  CreateWord("nop_then", XNOP_THEN);
+  CreateWord("nop_else", XNOP_ELSE);
 }
 
 void Interpret1()
