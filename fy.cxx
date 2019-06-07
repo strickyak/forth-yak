@@ -749,11 +749,11 @@ void Loop()
       break;
 
     case X_INCR_I_:
-      ++Mem[Rs];
+      Put(Rs, Get(Rs) + 1);
       break;
     case X_LOOP_:{
-        U count = Mem[Rs];
-        U limit = Mem[Rs + S];
+        C count = (C) Get(Rs);
+        C limit = (C) Get(Rs + S);
 
         if (count < limit) {
           Ip += Get(Ip);        // add offset to Ip.
@@ -784,7 +784,7 @@ void Loop()
 
 
     case X_PLUS_INCR_I_:
-      Mem[Rs] += Pop();
+      Put(Rs, Get(Rs) + Pop());
       break;
     case XPLUS_LOOP:{
         U leave = Pop();
@@ -885,6 +885,19 @@ void Loop()
     case XNOP_THEN:
     case XNOP_ELSE:
       break;
+
+    case X_DOT_DQUOTE:
+      while (true) {
+        Key();
+        U c = Pop();
+        if (c == '"')
+          break;                // on "
+        if (c > 255)
+          break;                // on EOF
+        putchar(c);
+      }
+      break;
+
     default:{
         FatalI("Bad op", op);
       }
@@ -1040,6 +1053,7 @@ void Init()
   CreateWord("nop_if", XNOP_IF);
   CreateWord("nop_then", XNOP_THEN);
   CreateWord("nop_else", XNOP_ELSE);
+  CreateWord(".\"", X_DOT_DQUOTE);
 }
 
 void Interpret1()

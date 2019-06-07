@@ -126,6 +126,7 @@ typedef enum {
   XNOP_IF,
   XNOP_THEN,
   XNOP_ELSE,
+  X_DOT_DQUOTE,
 } Opcode;
 
 constexpr B LEN_MASK = 0x1F;    // max length is 31.
