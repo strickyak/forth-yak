@@ -425,10 +425,13 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
 }
 
 #ifdef OPT
+
 #define DISPATCH cfa = Get(Ip); Ip += S; op = Get(cfa); W = cfa + S; goto *dispatch_table[op];
+
 #else
+
 #define DISPATCH {\
-    Show();\
+    ShowDispatch();\
     cfa = Get(Ip);\
     Ip += S;\
     op = Get(cfa);\
@@ -436,7 +439,7 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
     goto *dispatch_table[op];\
     }
 
-void Show()
+void ShowDispatch()
 {
   U cfa = Get(Ip);
   U op = Get(cfa);
