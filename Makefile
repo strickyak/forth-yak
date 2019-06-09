@@ -2,7 +2,24 @@ O=-g
 
 all: fy test
 
-fy: fy.h fy.cxx linenoise.o generated-enum.inc generated-creators.inc generated-dispatch-table.inc generated-dispatchers.inc
+INCS+=generated-enum.inc
+generated-enum.inc: defs.txt mk-enum.awk
+	awk -f mk-enum.awk < defs.txt > generated-enum.inc
+INCS+=generated-enum-names.inc
+generated-enum-names.inc: defs.txt mk-enum-names.awk
+	awk -f mk-enum-names.awk < defs.txt > generated-enum-names.inc
+INCS+=generated-creators.inc
+generated-creators.inc: defs.txt mk-creators.awk
+	awk -f mk-creators.awk < defs.txt > generated-creators.inc
+INCS+=generated-dispatch-table.inc
+generated-dispatch-table.inc: defs.txt mk-dispatch-table.awk
+	awk -f mk-dispatch-table.awk < defs.txt > generated-dispatch-table.inc
+INCS+=generated-dispatchers.inc
+generated-dispatchers.inc: defs.txt mk-dispatchers.awk
+	awk -f mk-dispatchers.awk < defs.txt > generated-dispatchers.inc
+
+fy: fy.h fy.cxx linenoise.o $(INCS)
+	echo $(INCS)
 	g++ -o fy $O fy.cxx linenoise.o
 
 test: fy
@@ -12,15 +29,6 @@ test: fy
 
 linenoise.o: vendor/linenoise/linenoise.h vendor/linenoise/linenoise.c
 	gcc -O2 -c vendor/linenoise/linenoise.c
-
-generated-enum.inc: defs.txt mk-enum.awk
-	awk -f mk-enum.awk < defs.txt > generated-enum.inc
-generated-creators.inc: defs.txt mk-creators.awk
-	awk -f mk-creators.awk < defs.txt > generated-creators.inc
-generated-dispatch-table.inc: defs.txt mk-dispatch-table.awk
-	awk -f mk-dispatch-table.awk < defs.txt > generated-dispatch-table.inc
-generated-dispatchers.inc: defs.txt mk-dispatchers.awk
-	awk -f mk-dispatchers.awk < defs.txt > generated-dispatchers.inc
 
 i:
 	ci -l -m/dev/null -t/dev/null -q *.h *.cxx defs.txt *.fy Makefile

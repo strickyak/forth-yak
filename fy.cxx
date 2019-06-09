@@ -439,14 +439,22 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
     goto *dispatch_table[op];\
     }
 
+const char *opcode_enum_names[] = {
+#include "generated-enum-names.inc"
+};
+
 void ShowDispatch()
 {
   U cfa = Get(Ip);
   U op = Get(cfa);
   U return_size = Rs0 - Rs;
   U data_size = Ds0 - Ds;
-  fprintf(stderr, "Ip=%lld -> %lld(%s) -> %lld [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
-          (ULL) op, (ULL) return_size / S, (ULL) data_size / S);
+  const char *opname = "?opcode-out-of-range?";
+  if (0 <= op && op < sizeof(opcode_enum_names) / sizeof(const char *)) {
+    opname = opcode_enum_names[op];
+  }
+  fprintf(stderr, " Ip=%lld -> %lld(%s) -> %lld(%s)  [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
+          (ULL) op, opname, (ULL) return_size / S, (ULL) data_size / S);
   for (U i = 0; i < data_size && i < 32 * S; i += S) {
     fprintf(stderr, " %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
   }
