@@ -57,7 +57,7 @@ extern U W;                     // W register
 extern const char *Argv0;
 
 typedef enum {
-# include "generated-enum.inc"
+#include "generated-enum.inc"
 } Opcode;
 
 constexpr B LEN_MASK = 0x1F;    // max length is 31.

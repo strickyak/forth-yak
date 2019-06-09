@@ -34,7 +34,7 @@ map < U, string > link_map, cfa_map, dfa_map;   // Just for debugging.
 
 InputKey input_key;
 
-const char* SmartPrintNum(U u, FILE * fd = stdout)
+const char *SmartPrintNum(U u, FILE * fd = stdout)
 {
   static char buf[99];
   C x = (C) u;
@@ -49,7 +49,8 @@ const char* SmartPrintNum(U u, FILE * fd = stdout)
   } else {
     sprintf(buf, "  ---");
   }
-  if (fd) fprintf(fd, "%s", buf);
+  if (fd)
+    fprintf(fd, "%s", buf);
   return buf;
 };
 
@@ -436,14 +437,16 @@ U LookupCfa(const char *s, B * flags_out = nullptr)
     goto *dispatch_table[op];\
     }
 
-void Show() {
+void Show()
+{
   U cfa = Get(Ip);
   U op = Get(cfa);
   U return_size = Rs0 - Rs;
   U data_size = Ds0 - Ds;
-  fprintf(stderr, "Ip=%lld -> %lld(%s) -> %lld [%llu; %llu]", (ULL)Ip, (ULL)cfa, SmartPrintNum(cfa, nullptr), (ULL)op, (ULL) return_size/S, (ULL)data_size/S);
-  for (U i = 0; i < data_size && i < 32*S; i+=S) {
-    fprintf(stderr, " %s", SmartPrintNum(Get(Ds0 - (i+1)*S), nullptr));
+  fprintf(stderr, "Ip=%lld -> %lld(%s) -> %lld [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
+          (ULL) op, (ULL) return_size / S, (ULL) data_size / S);
+  for (U i = 0; i < data_size && i < 32 * S; i += S) {
+    fprintf(stderr, " %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
   }
   fprintf(stderr, "\n");
 }
