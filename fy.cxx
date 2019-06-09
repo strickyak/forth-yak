@@ -345,8 +345,8 @@ void CreateWord(const char *name, Opcode code, B flags = 0)
   U latest = Get(LatestPtr);
   U here = Get(HerePtr);
   LOG(stderr,
-          "CreateWord(%s, %llx): HerePtr=%llx HERE=%llx  latest=%llx\n",
-          name, (ULL) code, (ULL) HerePtr, (ULL) here, (ULL) latest);
+      "CreateWord(%s, %llx): HerePtr=%llx HERE=%llx  latest=%llx\n",
+      name, (ULL) code, (ULL) HerePtr, (ULL) here, (ULL) latest);
   Put(LatestPtr, here);
   link_map[here] = name;
 
@@ -463,7 +463,7 @@ void ShowDispatch()
     opname = opcode_enum_names[op];
   }
   LOG(stderr, " Ip=%lld -> %lld(%s) -> %lld(%s)  [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
-          (ULL) op, opname, (ULL) return_size / S, (ULL) data_size / S);
+      (ULL) op, opname, (ULL) return_size / S, (ULL) data_size / S);
   for (U i = 0; i < data_size && i < 32 * S; i += S) {
     LOG(stderr, " %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
   }
