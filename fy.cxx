@@ -8,6 +8,14 @@
 #include <map>
 #include <string>
 
+#define FPF fprintf
+
+#ifdef OPT
+#define LOG if(false)fprintf
+#else
+#define LOG if(true)fprintf
+#endif
+
 using std::map;
 using std::string;
 
@@ -50,7 +58,7 @@ const char *SmartPrintNum(U u, FILE * fd = stdout)
     sprintf(buf, "  ---");
   }
   if (fd)
-    fprintf(fd, "%s", buf);
+    LOG(fd, "%s", buf);
   return buf;
 };
 
@@ -118,7 +126,7 @@ void DumpMem(bool force = false)
 void CheckEq(int line, U a, U b)
 {
   if (a != b) {
-    fprintf(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line, (ULL) a, (ULL) b);
+    FPF(stderr, "*** CheckEq Fails: line %d: %llx != %llx\n", line, (ULL) a, (ULL) b);
     DumpMem(true);
     assert(0);
   }
@@ -127,7 +135,7 @@ void CheckEq(int line, U a, U b)
 U CheckU(U x)
 {
   if (!x) {
-    fprintf(stderr, "*** CheckU Fails\n");
+    FPF(stderr, "*** CheckU Fails\n");
     DumpMem(true);
     assert(x);
   }
@@ -139,7 +147,7 @@ int Fatality;
 void Fatal(const char *msg)
 {
   ++Fatality;
-  fprintf(stderr, " *** %s: Fatal: %s\n", Argv0, msg);
+  FPF(stderr, " *** %s: Fatal: %s\n", Argv0, msg);
   if (Fatality < 2)
     DumpMem(true);
   assert(0);
@@ -148,7 +156,7 @@ void Fatal(const char *msg)
 void FatalU(const char *msg, int x)
 {
   ++Fatality;
-  fprintf(stderr, " *** %s: FatalU: %s [0x%llx]\n", Argv0, msg, (ULL) x);
+  FPF(stderr, " *** %s: FatalU: %s [0x%llx]\n", Argv0, msg, (ULL) x);
   if (Fatality < 2)
     DumpMem(true);
   assert(0);
@@ -157,7 +165,7 @@ void FatalU(const char *msg, int x)
 void FatalI(const char *msg, int x)
 {
   ++Fatality;
-  fprintf(stderr, " *** %s: FatalI: %s [%d]\n", Argv0, msg, x);
+  FPF(stderr, " *** %s: FatalI: %s [%d]\n", Argv0, msg, x);
   if (Fatality < 2)
     DumpMem(true);
   assert(0);
@@ -167,7 +175,7 @@ void FatalS(const char *msg, const char *s)
 {
   ++Fatality;
   if (Fatality < 2)
-    fprintf(stderr, " *** %s: FatalS: %s `%s`\n", Argv0, msg, s);
+    FPF(stderr, " *** %s: FatalS: %s `%s`\n", Argv0, msg, s);
   if (Fatality < 2)
     DumpMem(true);
   assert(0);
@@ -206,7 +214,7 @@ void InputKey::Advance()
 #else
       isatty_ = (isatty(0) == 1);
       fflush(stdout);
-      fprintf(stderr, " ok ");
+      FPF(stderr, " ok ");
 #endif
     } else {
       current_ = nullptr;
@@ -230,11 +238,11 @@ U InputKey::Key()
   while (true) {
     fflush(stdout);
     if (!current_) {
-      fprintf(stderr, "  *EOF*  \n");
+      FPF(stderr, "  *EOF*  \n");
       exit(0);
     }
     if (next_ok_) {
-      fprintf(stderr, " ok ");
+      FPF(stderr, " ok ");
       next_ok_ = false;
     }
     int ch;
@@ -273,7 +281,6 @@ U InputKey::Key()
     }
 #endif
     if (ch != EOF) {
-      // fprintf(stderr, "<%c=%d>", ch, ch);
       return (U) ch;
     }
     Advance();
@@ -290,7 +297,7 @@ U PopNewKeyCheckEOF()
   Key();
   U c = Pop();
   if (c & 256) {                // If EOF
-    fprintf(stderr, "<<<<< Exiting on EOF >>>>>\n");
+    FPF(stderr, "<<<<< Exiting on EOF >>>>>\n");
     exit(0);
   }
   D(stderr, "[char:%02x]", c);
@@ -324,7 +331,7 @@ char *WordStr()
   Word();
   Pop();                        // pop length
   U wordIndex = Pop();          // pop word; should be 1.
-  fprintf(stderr, " >>%s<< ", &Mem[wordIndex]);
+  LOG(stderr, " >>%s<< ", &Mem[wordIndex]);
   return &Mem[wordIndex];
 }
 
@@ -335,7 +342,7 @@ void CreateWord(const char *name, Opcode code, B flags = 0)
   }
   U latest = Get(LatestPtr);
   U here = Get(HerePtr);
-  fprintf(stderr,
+  LOG(stderr,
           "CreateWord(%s, %llx): HerePtr=%llx HERE=%llx  latest=%llx\n",
           name, (ULL) code, (ULL) HerePtr, (ULL) here, (ULL) latest);
   Put(LatestPtr, here);
@@ -364,7 +371,7 @@ void Comma(U x)
 {
   U here = Get(HerePtr);
   SmartPrintNum(x, stderr);
-  fprintf(stderr, " Comma(%llx): HerePtr=%llx HERE=%llx\n", (ULL) x, (ULL) HerePtr, (ULL) here);
+  LOG(stderr, " Comma(%llx): HerePtr=%llx HERE=%llx\n", (ULL) x, (ULL) HerePtr, (ULL) here);
   Put(here, x);
   Put(HerePtr, here + S);
 }
@@ -453,12 +460,12 @@ void ShowDispatch()
   if (0 <= op && op < sizeof(opcode_enum_names) / sizeof(const char *)) {
     opname = opcode_enum_names[op];
   }
-  fprintf(stderr, " Ip=%lld -> %lld(%s) -> %lld(%s)  [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
+  LOG(stderr, " Ip=%lld -> %lld(%s) -> %lld(%s)  [%llu; %llu]", (ULL) Ip, (ULL) cfa, SmartPrintNum(cfa, nullptr),
           (ULL) op, opname, (ULL) return_size / S, (ULL) data_size / S);
   for (U i = 0; i < data_size && i < 32 * S; i += S) {
-    fprintf(stderr, " %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
+    LOG(stderr, " %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
   }
-  fprintf(stderr, "\n");
+  LOG(stderr, "\n");
 }
 #endif
 
@@ -532,7 +539,7 @@ U Allot(int n)
 {
   U z = Get(HerePtr);
   Put(HerePtr, z + n);
-  fprintf(stderr, "Allot(%llx) : Here %llx -> Here %llx\n", (ULL) n, (ULL) z, (ULL) Get(HerePtr));
+  LOG(stderr, "Allot(%llx) : Here %llx -> Here %llx\n", (ULL) n, (ULL) z, (ULL) Get(HerePtr));
   return z;
 }
 
@@ -565,7 +572,7 @@ void Interpret1()
   B flags = 0;
   U cfa = LookupCfa(word, &flags);
   U compiling = Get(StatePtr);
-  fprintf(stderr, "Interpret1: word=`%s` flags=%d cfa=%d , %s\n", word, flags, cfa, compiling ? "compiling" : "");
+  LOG(stderr, "Interpret1: word=`%s` flags=%d cfa=%d , %s\n", word, flags, cfa, compiling ? "compiling" : "");
   if (cfa) {
     // Found a word.
     if (compiling) {

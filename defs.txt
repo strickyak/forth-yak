@@ -140,23 +140,23 @@
       Poke(Peek() - 4);
       
 = X_PLUS +
-      fprintf(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
+      LOG(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
       DropPokeC((C) Peek(1) + (C) Peek());
       
 = X_MINUS -
-      fprintf(stderr, "{MINUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) - CPeek());
+      LOG(stderr, "{MINUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) - CPeek());
       DropPokeC((C) Peek(1) - (C) Peek());
       
 = X_TIMES *
-      fprintf(stderr, "{TIMES: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) * CPeek());
+      LOG(stderr, "{TIMES: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) * CPeek());
       DropPokeC(CPeek(1) * CPeek());
       
 = X_DIVIDE /
-      fprintf(stderr, "{DIV: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) / CPeek());
+      LOG(stderr, "{DIV: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) / CPeek());
       DropPokeC(CPeek(1) / CPeek());
       
 = XMOD mod
-      fprintf(stderr, "{MOD: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) % CPeek());
+      LOG(stderr, "{MOD: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) % CPeek());
       DropPokeC(CPeek(1) % CPeek());
       
 = XDIVMOD /mod
@@ -167,27 +167,27 @@
 
       
 = X_EQ =
-      fprintf(stderr, "{EQ: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) == CPeek());
+      LOG(stderr, "{EQ: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) == CPeek());
       DropPokeC(CPeek(1) == CPeek());
       
 = X_NE !=
-      fprintf(stderr, "{NE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) != CPeek());
+      LOG(stderr, "{NE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) != CPeek());
       DropPokeC(CPeek(1) != CPeek());
       
 = X_LT <
-      fprintf(stderr, "{LT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) < CPeek());
+      LOG(stderr, "{LT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) < CPeek());
       DropPokeC(CPeek(1) < CPeek());
       
 = X_LE <=
-      fprintf(stderr, "{LE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) <= CPeek());
+      LOG(stderr, "{LE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) <= CPeek());
       DropPokeC(CPeek(1) <= CPeek());
       
 = X_GT >
-      fprintf(stderr, "{GT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) > CPeek());
+      LOG(stderr, "{GT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) > CPeek());
       DropPokeC(CPeek(1) > CPeek());
       
 = X_GE >=
-      fprintf(stderr, "{GE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) >= CPeek());
+      LOG(stderr, "{GE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) >= CPeek());
       DropPokeC(CPeek(1) >= CPeek());
       
 = X_AND and
@@ -213,11 +213,11 @@
 = XMUST must
       if (Pop() == 0) {
         DumpMem(true);
-        fprintf(stderr, " *** MUST failed\n");
+        FPF(stderr, " *** MUST failed\n");
         assert(0);
       } else {
         ++MustOk;
-        fprintf(stderr, "   [MUST okay #%d]\n", MustOk);
+        LOG(stderr, "   [MUST okay #%d]\n", MustOk);
       }
       
 =i XIMMEDIATE immediate
@@ -241,7 +241,7 @@
         U cfa = LookupCfa(word);
         assert(cfa);
         Push(cfa);
-        fprintf(stderr, "_TICK: word=`%s` cfa=%d\n", word, cfa);
+        LOG(stderr, "_TICK: word=`%s` cfa=%d\n", word, cfa);
       
 = X_COMMA ,
       Comma(Pop());
@@ -366,7 +366,7 @@
         Push(new_leave);
         Push(if_then);
       
-=i XUNLOOP unloop
+= XUNLOOP unloop
       Rs += 2 * S;              // Pop count & limit off of the return stack.
       
 =i XIF if
@@ -402,7 +402,28 @@
         Ip += S;                // skip over offset.
       }
       
-= X_DOT_DQUOTE ."
+=i PARENS_COMMENT (
+	while (true) {
+		Key();
+		U c = Pop();
+		LOG(stderr, "PARENS_COMMENT Discard: %d=`%c`\n", c, c);
+        	if (c == ')')  // TODO: count ( & )
+          		break;          // on )
+        	if (c > 255)
+          		break;          // on EOF
+	}
+
+=i BACKSLASH_COMMENT \
+	while (true) {
+		Key();
+		U c = Pop();
+        	if (c == '\n')
+          		break;          // on newline
+        	if (c > 255)
+          		break;          // on EOF
+	}
+
+=i X_DOT_DQUOTE ."
       while (true) {
         Key();
         U c = Pop();
