@@ -1,0 +1,424 @@
+= X_STOP (stop)
+      return;
+      
+= X_DOT .
+        U x = Pop();
+        printf("%lld. ", (long long) C(x));
+        fflush(stdout);
+      
+= XCR cr
+      putchar('\n');
+      fflush(stdout);
+      
+= XDUP dup
+      // dup   ( a -- a a )
+      Push(Peek());
+      
+= XDROP drop
+      // drop  ( a -- )
+      Ds += S;
+      
+= X_2DUP 2dup
+      Push(Peek(1));
+      Push(Peek(1));
+      
+= X_2DROP 2drop
+      Ds += 2 * S;
+      
+= XSWAP swap
+        // swap  ( a b -- b a )
+        U x = Peek();
+        U y = Peek(1);
+        Poke(y, 0);
+        Poke(x, 1);
+      
+= X_HUH_DUP ?dup
+        // ?dup:  duplicate top of stack if nonzero.
+        if (Peek())
+          Push(Peek());
+      
+= X_2SWAP 2swap
+        U x = Peek();
+        U y = Peek(2);
+        Poke(y, 0);
+        Poke(x, 2);
+        x = Peek(1);
+        y = Peek(3);
+        Poke(y, 1);
+        Poke(x, 3);
+      
+= XOVER over
+      // over  ( a b -- a b a )
+      Push(Peek(1));
+      
+= XROT rot
+        // rot   ( a b c -- b c a )
+        U tmp = Peek(2);
+        Poke(Peek(1), 2);
+        Poke(Peek(0), 1);
+        Poke(tmp, 0);
+      
+= X_ROT -rot
+        // -rot  ( a b c -- c a b ) rot rot ;
+        U tmp = Peek(0);
+        Poke(Peek(1), 0);
+        Poke(Peek(2), 1);
+        Poke(tmp, 2);
+      
+= XNIP nip
+      // nip   ( a b -- b ) swap drop ;
+      Poke(Pop());
+      
+= XTUCK tuck
+        // tuck  ( a b -- b a b ) swap over ;
+        // first swap.
+        U x = Peek();
+        U y = Peek(1);
+        Poke(y, 0);
+        Poke(x, 1);
+        // then over.
+        Push(Peek(1));
+      
+= XGT_R >r
+        PushR(Pop());
+      
+= XR_GT r>
+        Push(PopR());
+      
+= XR_AT r@
+        Push(Get(Rs));
+      
+= XI i
+        Push(Get(Rs));
+      
+= XJ j
+        Push(Get(Rs + 2 * S));
+      
+= XK k
+        Push(Get(Rs + 4 * S));
+      
+= X_LIT_ lit
+        Push(Get(Ip));
+        Ip += S;
+      
+= X_ENTER_ enter
+        PushR(Ip);
+        Ip = W;
+      
+= X_EXIT_ exit
+        Ip = PopR();
+      
+=i X_SEMICOLON ;
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use `;` when not compiling");
+
+      Comma(CheckU(LookupCfa("exit")));
+      Put(StatePtr, 0);         // Interpreting state.
+      
+= X_COLON :
+        U compiling = Get(StatePtr);
+        if (compiling)
+          Fatal("cannot use `:` when already compiling");
+        char *name = WordStr();
+        CreateWord(name, OP_X_ENTER_);
+        Put(StatePtr, 1);       // Compiling state.
+      
+= XALIGN align
+      Poke(Aligned(Peek()));
+      
+= X_1PLUS 1+
+      Poke(Peek() + 1);
+      
+= X_4PLUS 4+
+      Poke(Peek() + 4);
+      
+= X_1MINUS 1-
+      Poke(Peek() - 1);
+      
+= X_4MINUS 4-
+      Poke(Peek() - 4);
+      
+= X_PLUS +
+      fprintf(stderr, "{PLUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) + CPeek());
+      DropPokeC((C) Peek(1) + (C) Peek());
+      
+= X_MINUS -
+      fprintf(stderr, "{MINUS: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) - CPeek());
+      DropPokeC((C) Peek(1) - (C) Peek());
+      
+= X_TIMES *
+      fprintf(stderr, "{TIMES: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) * CPeek());
+      DropPokeC(CPeek(1) * CPeek());
+      
+= X_DIVIDE /
+      fprintf(stderr, "{DIV: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) / CPeek());
+      DropPokeC(CPeek(1) / CPeek());
+      
+= XMOD mod
+      fprintf(stderr, "{MOD: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) % CPeek());
+      DropPokeC(CPeek(1) % CPeek());
+      
+= XDIVMOD /mod
+      C div = CPeek(1) / CPeek();
+      C mod = CPeek(1) % CPeek();
+      Poke((U)div, 1);
+      Poke((U)mod, 0);
+
+      
+= X_EQ =
+      fprintf(stderr, "{EQ: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) == CPeek());
+      DropPokeC(CPeek(1) == CPeek());
+      
+= X_NE !=
+      fprintf(stderr, "{NE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) != CPeek());
+      DropPokeC(CPeek(1) != CPeek());
+      
+= X_LT <
+      fprintf(stderr, "{LT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) < CPeek());
+      DropPokeC(CPeek(1) < CPeek());
+      
+= X_LE <=
+      fprintf(stderr, "{LE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) <= CPeek());
+      DropPokeC(CPeek(1) <= CPeek());
+      
+= X_GT >
+      fprintf(stderr, "{GT: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) > CPeek());
+      DropPokeC(CPeek(1) > CPeek());
+      
+= X_GE >=
+      fprintf(stderr, "{GE: %d %d %d}\n", CPeek(1), CPeek(), CPeek(1) >= CPeek());
+      DropPokeC(CPeek(1) >= CPeek());
+      
+= X_AND and
+	DropPokeC(CPeek(1) & CPeek()); 
+= X_OR or
+	DropPokeC(CPeek(1) | CPeek()); 
+= X_XOR xor
+	DropPokeC(CPeek(1) ^ CPeek()); 
+= X_INVERT invert
+	Poke(~Peek()); 
+= XDUMPMEM dumpmem
+      DumpMem(true);
+      
+= XWORDS words
+      Words();
+      
+= XR0 r0
+      Push(Rs0);
+      
+= XS0 s0
+      Push(Ds0);
+      
+= XMUST must
+      if (Pop() == 0) {
+        DumpMem(true);
+        fprintf(stderr, " *** MUST failed\n");
+        assert(0);
+      } else {
+        ++MustOk;
+        fprintf(stderr, "   [MUST okay #%d]\n", MustOk);
+      }
+      
+=i XIMMEDIATE immediate
+      Mem[Get(LatestPtr) + S] ^= IMMEDIATE_BIT;
+      
+= XHIDDEN hidden
+      Mem[Pop() + S] ^= HIDDEN_BIT;
+      
+= XKEY key
+      Key();
+      
+= XWORD word
+      Word();
+      
+= XHERE here
+      Push(Get(HerePtr));
+      
+=i X_TICK '
+        char *word = WordStr();
+        assert(word);
+        U cfa = LookupCfa(word);
+        assert(cfa);
+        Push(cfa);
+        fprintf(stderr, "_TICK: word=`%s` cfa=%d\n", word, cfa);
+      
+= X_COMMA ,
+      Comma(Pop());
+      
+=i XDO do
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use DO unless compiling");
+
+        Comma(CheckU(LookupCfa("nop_do")));
+        U swap = CheckU(LookupCfa("swap"));
+        Comma(swap);
+        U onto_r = CheckU(LookupCfa(">r"));
+        Comma(onto_r);
+        Comma(onto_r);
+        Push(Get(HerePtr));     // Jump back target.
+        Push(0);                // No repair.
+        Push(0);                // No leave repair.
+      
+=i X_DO ?do
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use ?DO unless compiling");
+
+        Comma(CheckU(LookupCfa("nop_do")));
+        U swap = CheckU(LookupCfa("swap"));
+        Comma(swap);
+        U onto_r = CheckU(LookupCfa(">r"));
+        Comma(onto_r);
+        Comma(onto_r);
+        U branch = CheckU(LookupCfa("branch"));
+        Comma(branch);
+        U repair = Get(HerePtr);
+        Comma(0);
+        Push(Get(HerePtr));     // Jump back target is after the `branch`.
+        Push(repair);
+        Push(0);                // No leave repair.
+      
+
+= X_INCR_I_ (incr_i)
+      Put(Rs, Get(Rs) + 1);
+       
+= X_LOOP_ (loop)
+        C count = (C) Get(Rs);
+        C limit = (C) Get(Rs + S);
+
+        if (count < limit) {
+          Ip += Get(Ip);        // add offset to Ip.
+        } else {
+          Ip += S;              // skip over offset.
+          Rs += 2 * S;          // pop count & limit from Return stack.
+        }
+      
+=i XLOOP loop
+        U leave = Pop();
+        U repair = Pop();
+        U back = Pop();
+        Comma(CheckU(LookupCfa("nop_loop")));
+        Comma(CheckU(LookupCfa("(incr_i)")));
+        if (repair) {
+          // Repair ?DO target to jump after (incr_i) and before (loop).
+          Put(repair, Get(HerePtr) - repair);
+        }
+        Comma(CheckU(LookupCfa("(loop)")));
+        Comma(back - Get(HerePtr));
+        if (leave) {
+          // Repair leave target.
+          Put(leave, Get(HerePtr) - leave);
+        }
+
+
+= X_PLUS_INCR_I_  (+incr_i)
+      Put(Rs, Get(Rs) + Pop());
+      
+=i XPLUS_LOOP (+loop)
+        U leave = Pop();
+        U repair = Pop();
+        U back = Pop();
+        Comma(CheckU(LookupCfa("nop_loop")));
+        Comma(CheckU(LookupCfa("(+incr_i)")));
+        if (repair) {
+          // Repair ?DO target to jump after (incr_i) and before (loop).
+          Put(repair, Get(HerePtr) - repair);
+        }
+        Comma(CheckU(LookupCfa("(loop)")));
+        Comma(back - Get(HerePtr));
+        if (leave) {
+          // Repair leave target.
+          Put(leave, Get(HerePtr) - leave);
+        }
+      
+
+=i XLEAVE leave
+        // TODO -- current requires exactly 1 IF...THEN around it.
+        // Replace 
+        U if_then = Pop();
+        U old_leave = Pop();
+        if (old_leave) {
+          // Repair leave target.
+          Put(old_leave, Get(HerePtr) - old_leave);
+        }
+        Comma(CheckU(LookupCfa("nop_leave")));
+        Comma(CheckU(LookupCfa("r>"))); // Drop count from return stack.
+        Comma(CheckU(LookupCfa("drop")));
+        Comma(CheckU(LookupCfa("r>"))); // Drop limit from return stack.
+        Comma(CheckU(LookupCfa("drop")));
+        Comma(CheckU(LookupCfa("branch")));
+        U new_leave = Get(HerePtr);
+        Comma(0);               // Needs repairing with leave.
+
+        U old_repair = Pop();
+        if (old_repair) {
+          // Repair the old branch to chain the following branch.
+          Put(old_repair, Get(HerePtr) - old_repair);
+          Comma(CheckU(LookupCfa("branch")));
+          U new_repair = Get(HerePtr);
+          Comma(0);             // Needs repairing.
+          Push(new_repair);
+        } else {
+          Push(0);              // New repair is also empty.
+        }
+        Push(new_leave);
+        Push(if_then);
+      
+=i XUNLOOP unloop
+      Rs += 2 * S;              // Pop count & limit off of the return stack.
+      
+=i XIF if
+        U compiling = Get(StatePtr);
+        if (!compiling)
+          Fatal("cannot use IF unless compiling");
+        Comma(LookupCfa("nop_if"));
+        Comma(LookupCfa("0branch"));
+        Push(Get(HerePtr));     // Push position of EEEE to repair.
+        Comma(0xEEEE);
+      
+=i XELSE else
+        U repair = Pop();
+        Comma(LookupCfa("nop_else"));
+        Comma(LookupCfa("branch"));
+        Push(Get(HerePtr));     // Push position of EEEE to repair.
+        Comma(0xEEEE);
+        Put(repair, Get(HerePtr) - repair);
+        Comma(LookupCfa("nop"));
+      
+=i XTHEN then
+        U repair = Pop();
+        Put(repair, Get(HerePtr) - repair);
+        Comma(LookupCfa("nop_then"));
+      
+= XBRANCH branch
+      Ip += Get(Ip);            // add offset to Ip.
+      
+= XBRANCH0 0branch
+      if (Pop() == 0) {
+        Ip += Get(Ip);          // add offset to Ip.
+      } else {
+        Ip += S;                // skip over offset.
+      }
+      
+= X_DOT_DQUOTE ."
+      while (true) {
+        Key();
+        U c = Pop();
+        if (c == '"')
+          break;          // on "
+        if (c > 255)
+          break;          // on EOF
+        putchar(c);
+      }
+
+= XNOP nop
+= XNOP_DO nop_do
+= XNOP_LOOP nop_loop
+= XNOP_LEAVE nop_leave
+= XNOP_IF nop_if
+= XNOP_THEN nop_then
+= XNOP_ELSE nop_else
+      
+  // End.

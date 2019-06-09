@@ -7,11 +7,13 @@
 4 -9 *   -36 = must
 100 12 /   8 = must
 100 12 mod   4 = must
+100 12 /mod   dup .    4 = must  dup .    8 = must
 1 2 3 4 5 + + + +   15 = must
 10 1+ 11 = must
 10 1- 9 = must
 10 4+ 14 = must
 10 4- 6 = must
+
 
 
 5 8 swap -   3 = must
