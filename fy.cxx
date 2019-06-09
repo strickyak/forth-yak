@@ -238,7 +238,9 @@ U InputKey::Key()
   while (true) {
     fflush(stdout);
     if (!current_) {
-      FPF(stderr, "  *EOF*  \n");
+      if (add_stdin_) {
+        FPF(stderr, "  *EOF*  \n");
+      }
       exit(0);
     }
     if (next_ok_) {
