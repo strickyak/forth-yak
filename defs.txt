@@ -3,7 +3,7 @@
       
 = X_DOT .
         U x = Pop();
-        printf("%lld. ", (long long) C(x));
+        printf("%lld ", (long long) C(x));
         fflush(stdout);
       
 = XCR cr
@@ -97,7 +97,7 @@
 = XK k
         Push(Get(Rs + 4 * S));
       
-= X_LIT_ lit
+= LIT lit
         Push(Get(Ip));
         Ip += S;
       
@@ -424,15 +424,39 @@
 	}
 
 =i X_DOT_DQUOTE ."
+      U compiling = Get(StatePtr);
       while (true) {
-        Key();
-        U c = Pop();
-        if (c == '"')
-          break;          // on "
-        if (c > 255)
-          break;          // on EOF
-        putchar(c);
+		Key();
+		U c = Pop();
+		if (c == '"')
+		  break;          // on "
+		if (c > 255)
+		  break;          // on EOF
+		if (compiling) {
+			// TODO more efficient.
+			U lit = LookupCfa("lit");
+			Comma(lit);
+			Comma(c);
+			U emit = LookupCfa("emit");
+			Comma(emit);
+		} else {
+			putchar(c);
+		}
       }
+
+= EMIT emit
+  putchar(Pop());
+
+= DOT_S .s
+  U data_size = Ds0 - Ds;
+  for (U i = 0; i < data_size; i += S) {
+    printf(" %lld", Get(Ds0 - (i + 1) * S));
+  }
+= DOT_S_SMART .ss
+  U data_size = Ds0 - Ds;
+  for (U i = 0; i < data_size; i += S) {
+    printf(" %s", SmartPrintNum(Get(Ds0 - (i + 1) * S), nullptr));
+  }
 
 = XNOP nop
 = XNOP_DO nop_do

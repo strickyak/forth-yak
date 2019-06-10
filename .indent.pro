@@ -1,1 +1,1 @@
--kr -nut -i2 -l120
+-kr -nut -i2 -l120 --honour-newlines
